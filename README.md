@@ -1,101 +1,100 @@
 # vtl-rs
 
-*vtl-rs* is a Rust implementation of the *Very Tiny Language (VTL-2)*, a simple, high-level language originally designed for the Altair microcomputers in the 1970s. This project aims to be a spiritual successor with simplicity and hackability in mind, but it can of course not rival the compactness of the original.
+[![CI](https://github.com/FionaPreroll/vtl-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/FionaPreroll/vtl-rs/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/FionaPreroll/vtl-rs/graph/badge.svg)](https://codecov.io/gh/FionaPreroll/vtl-rs)
 
-## What is VTL-2?
+*vtl-rs* is a Rust implementation of the *Very Tiny Language (VTL-2)*, a minimalist language written in 1977 by Frank McCoy and Gary Shannon for the Altair 680, where the whole interpreter fit into 768 bytes. It runs classic VTL-2 programs as the original did, as a small and fast command line program for Linux, macOS and Windows.
 
 ![Introduction excerpt from the VTL-2 manual. Source: [1]](./doc/vtl2intro.png)
 
-VTL-2, or **Very Tiny Language**, was a minimalist programming language developed to run on microcomputers like the Altair 680b, often with as little as 1-2 KB of memory. Despite its size, VTL-2 provided essential programming constructs, including:
-- Basic arithmetic operations (`+`, `-`, `*`, `/`, `%`)
-- Variables and simple assignments
-- Simple control structures (IF statements and GOTO, but originally in a weird way)
-- Support for integer division and remainder operations
+## What VTL-2 looks like
 
-## What vtl-rs Currently Does
+```
+10 ?="PRIME NUMBERS BELOW 50"
+20 N=2
+30 D=2
+40 M=N+1
+50 #=D*D>M*90
+60 Q=N/D
+70 #=%=0*110
+80 D=D+1
+85 #=50
+90 ?=N
+100 ?=" ";
+110 N=N+1
+120 #=N<50*30
+```
 
-The current implementation of **vtl-rs** in Rust is an early-stage interpreter with several core features already working:
+Every line is one assignment. `?=` prints, `#=` jumps (and `#=0` does not, which makes `#=condition*line` an IF), `%` is the remainder of the last division, and expressions run strictly from left to right on 16-bit numbers. [docs/language.md](docs/language.md) describes the whole language; [examples/](examples/) holds programs to try.
 
-### 1. **CPU and Memory Structures:**
-   - **CPU**: Manages internal registers, handles variables.
-   - **Memory**: Allows for reading and writing at specific memory addresses (Work In Progress).
+## What vtl-rs does
 
-### 2. **Parser and Lexer:**
-   - The **Lexer** converts user input (expressions) into tokens (e.g., numbers, variables, and operators).
-   - The **Parser** converts tokens into an **Abstract Syntax Tree (AST)**, which can then be evaluated by the CPU.
+- The complete VTL-2 of the Altair 680: programs of numbered lines, `0` to list them, jumps and returns with `#` and `!`, input and output of numbers and characters with `?` and `$`, arrays `:I)` in the memory after the program, `%`, `&`, `*` and random numbers with `'`.
+- The VTL02 extensions (`& | ^ [ ] { }` and `@`), which classic programs do not notice; `--strict` turns them off.
+- Errors are reported with line and column instead of doing something undefined.
+- About 30 million statements a second on a laptop, a 64 KB address space and no dependencies in the interpreter itself.
+- An interactive machine with line editing and history, `RUN`, `LIST`, `NEW`, `LOAD`, `SAVE` and `HELP`, Ctrl-C to stop a program.
+- `--baud 110` prints as slowly as a Teletype ASR-33.
 
-### 3. **Evaluator:**
-   - Supports evaluation of arithmetic expressions, including addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), and modulo (`%`).
-   - **Variable handling**: You can assign values to variables like `?`, and they will store intermediate results for use in further calculations.
-   - **String Handling**: The evaluator supports string output using the `?=` syntax. For example, `?="HELLO"` will print *HELLO* to the output.
+## Install
 
-### 4. **REPL (Read-Eval-Print Loop):**
-   - The interpreter runs in a REPL loop, allowing you to enter expressions interactively. The REPL supports expression evaluation and variable assignment.
-   - It also has a shell history file, which is `~/.vtl-rs_history` on Linux.
+Download the program for your system from the [releases](https://github.com/FionaPreroll/vtl-rs/releases), or build it with a current Rust:
 
-## Example Usage
+```
+cargo install --git https://github.com/FionaPreroll/vtl-rs
+```
 
-Here's a simple example of using **vtl-rs** in its current state ("OK" lines skipped for clarity):
+## Use
 
 ```console
-VTL-RS Interpreter
-VTL> ?=2+2
-4
-VTL> ?="HELLO WORLD!"
-HELLO WORLD!
-VTL> A=123
-OK (123)
-VTL> B=456
-OK (456)
-VTL> ?=A+B
-579
-VTL> ?=7/3
-2
-VTL> ?=%
-1
-VTL> ?=2+5*2
+$ vtl-rs
+VTL-RS 0.2.0 - VERY TINY LANGUAGE
+32504 BYTES FREE. TYPE HELP FOR HELP.
+OK
+?=2+5*2
 14
+OK
+10 ?="HELLO WORLD!"
+#=1
+HELLO WORLD!
+OK
+BYE
 ```
 
-### Key Points from the Output:
-
-1. **Basic Math Operations**:
-   - `?=2+2` gives `4`, which is expected in both left-to-right and operator precedence scenarios.
-
-2. **String Output**:
-   - `?="HELLO WORLD!"` correctly outputs the string as is.
-
-3. **Variables**:
-   - `A=123` and `B=456` store values in variables `A` and `B`, respectively.
-   - `?=A+B` evaluates `123 + 456` to give `579`.
-
-4. **Division and Remainder**:
-   - `?=7/3` gives `2` because it performs integer division.
-   - `?=%` gives `1`, which is the remainder of the previous division (`7 % 3`).
-
-5. **Strict Left-to-Right Evaluation**:
-   - The expression `?=2+5*2` produces `14`, following strict left-to-right evaluation, as `(2 + 5) * 2` rather than `2 + (5 * 2)`.
-
-## Build/Run
-
-You can easily build the REPL (a library build is possible, too!) on Linux/macOS/Windows or wherever Rust is running.
-You will need current Rust and Cargo installed, then:
+`vtl-rs program.vtl` runs a program file: its numbered lines are stored, other lines run as if typed, and the program starts at its first line unless the file starts it itself. Lines that start with `#` (and are no `#=`) are comments, so a file can start with `#!/usr/bin/env vtl-rs`.
 
 ```
-# This will give you the REPL prompt shown in the example:
-cargo run
-
-# <or>
-
-# to build vtl-rs:
-cargo build
-# the executable will be somewhere inside the target/ directory after that
+vtl-rs [OPTIONS] [FILE]
+  -i, --interactive     stay in the interactive machine after FILE
+  -e, --eval LINE       enter LINE before FILE (may be given more than once)
+  -m, --memory BYTES    end of memory, the value of * (default 32768)
+      --strict          only the VTL-2 of the Altair 680, without the VTL02 extensions
+      --precedence      * and / before + and -, instead of left to right
+      --seed N          seed of the random numbers in '
+      --baud RATE       print no faster than a serial line at RATE baud
+  -q, --quiet           no greeting
 ```
+
+The interpreter is also a library without dependencies (`default-features = false`): `vtl_rs::Machine` never blocks, takes lines with `enter`, runs a given number of statements with `run` and says when it waits for input.
+
+## Development
+
+The checks CI runs, before every push:
+
+```
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+After changing `Cargo.toml` or `Cargo.lock`, also `cargo audit` and `cargo deny check` (exceptions go into `deny.toml` with their reason). `./pre-commit.sh install` runs the checks before every commit. The expected output of the examples is in `tests/expected/`.
 
 ## References
 
-For those interested in the history of VTL-2, or the original manuals and documents, here are some useful references:
 - [1] [Altair 680 VTL-2 Programming Manual](https://deramp.com/downloads/mfe_archive/010-S100%20Computers%20and%20Boards/00-MITS/40-Software/VTL-2/VTL%20archive/Altair_680_VTL-2_Programming_Language_Manual.pdf)
 - [2] [VTL-2 Magazine Article (Gary Shannon)](https://deramp.com/downloads/altair/software/altair_680/VTL-2%20(Very%20Tiny%20Language)/VTL-2%20Magazine%20Article.pdf)
-- [3] [VTL-2 Source Code (Klaus2m5)](https://github.com/Klaus2m5/VTL02)
-- [4] [Altair Information (Deramp)](https://deramp.com/altair.html)
+- [3] [VTL02, VTL-2 for the 6502 (Michael T. Barry, Klaus2m5)](https://github.com/Klaus2m5/VTL02), whose source documents the behaviour of the original in detail
+
+## License
+
+GPL-3.0-only, see [LICENSE](LICENSE).

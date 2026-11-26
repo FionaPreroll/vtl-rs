@@ -85,12 +85,29 @@ jobs:
           key: ${{ matrix.name }}
       - run: cargo test --workspace --locked
       - run: cargo build --release --locked
+      # The program with its README and license, packed so that it keeps
+      # being executable: tar.gz, and zip for Windows.
+      - name: Package
+        shell: bash
+        env:
+          NAME: vtl-rs-${{ matrix.name }}
+        run: |
+          mkdir -p "dist/$NAME"
+          cp README.md LICENSE "dist/$NAME/"
+          if [ -f target/release/vtl-rs.exe ]; then
+            cp target/release/vtl-rs.exe "dist/$NAME/"
+            (cd dist && 7z a -tzip "$NAME.zip" "$NAME" > /dev/null)
+          else
+            cp target/release/vtl-rs "dist/$NAME/"
+            tar -czf "dist/$NAME.tar.gz" -C dist "$NAME"
+          fi
+          rm -r "dist/$NAME"
+          # Whether the program starts at all on this system.
+          echo '?="OK"' | target/release/vtl-rs -q
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: vtl-rs-${{ matrix.name }}
-          path: |
-            target/release/vtl-rs
-            target/release/vtl-rs.exe
+          path: dist/*
           if-no-files-found: error
 
   # What the interpreter is built from: no dependency with a known
@@ -140,3 +157,4 @@ jobs:
       - run: zizmor --format github .github
         env:
           GH_TOKEN: ${{ github.token }}
+

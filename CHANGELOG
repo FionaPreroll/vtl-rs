@@ -1,3 +1,14 @@
+# Changelog
+
+## 0.2.0 (unreleased)
+
+- The complete VTL-2 of the Altair 680: programs of numbered lines, `0` to list them, jumps and returns with `#` and `!`, `?` and `$` for input and output, arrays `:I)` in memory after the program, `%`, `&`, `*` and `'`, 16-bit unsigned numbers. The interpreter is a new, non-blocking machine without dependencies.
+- The VTL02 extensions `& | ^ [ ] { }` and `@`; `--strict` switches them off. `--precedence` replaces the former PEMDAS switch.
+- The command line program runs files, has `RUN`, `LIST`, `NEW`, `LOAD`, `SAVE`, `HELP` and `BYE`, stops a program on Ctrl-C and can print at the speed of a Teletype (`--baud`).
+- CI as in rueder, release builds for Linux, macOS and Windows.
+
+## 0.1.0 and earlier: the commit log
+
 Date:   Sun Oct 6 00:10:20 2024 +0200
 
     add program counter register and bind variable # to it
