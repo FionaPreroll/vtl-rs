@@ -18,6 +18,6 @@ mod memory_tests {
     fn test_memory_bounds() {
         let mut memory = Memory::new(1024);
         assert_eq!(memory.read(1023), 0); // Valid upper bound
-                                          // Potentially test for panic if going beyond bounds
+        // Potentially test for panic if going beyond bounds
     }
 }

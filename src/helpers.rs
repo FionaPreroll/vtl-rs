@@ -1,11 +1,12 @@
 const GIT_HASH: &str = env!("GIT_HASH");
-const BUILD_TIME: &str = env!("BUILD_TIME");
 const RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 pub fn get_build_info() -> String {
     format!(
-        "Build: {}\nGit: {}\nCompiled with: {}",
-        BUILD_TIME, GIT_HASH, RUSTC_VERSION
+        "Version: {}\nGit: {}\nCompiled with: {}",
+        env!("CARGO_PKG_VERSION"),
+        GIT_HASH,
+        RUSTC_VERSION
     )
 }
 

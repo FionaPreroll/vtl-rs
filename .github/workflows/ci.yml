@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Mondays at 05:17 UTC: a new advisory about a dependency or an action shows
+  # up even in a week without a change. Only the jobs dependencies and
+  # workflows run then.
+  schedule:
+    - cron: "17 5 * * 1"
+
+# What every job may do with the repository's token unless it says more: read.
+# No checkout keeps the token in .git/config (persist-credentials), so the
+# code a job runs after it cannot read it from there.
+permissions:
+  contents: read
+
+# A newer push to a pull request stops the older run; on main every run
+# finishes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Formatting, lints and the tests with coverage, for Codecov.
+  rust:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # Pinned to a commit, the action no longer takes the toolchain from its
+      # branch name. Rust itself stays the newest stable; rustup checks what it
+      # downloads against rust-lang.org's signed manifests.
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # The newest version in the action's own list at the pinned commit, its
+      # download checked against the checksum there; Dependabot raises it with
+      # the action.
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-llvm-cov
+      # Runs the tests (like cargo test) with coverage instrumentation.
+      - run: cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
+      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          flags: rust
+
+  # The interpreter on every system it is meant for: the tests there, and the
+  # release build of the command line program as an artifact of the run.
+  build:
+    if: github.event_name != 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+          - os: ubuntu-24.04-arm
+            name: linux-aarch64
+          - os: macos-latest
+            name: macos-aarch64
+          - os: windows-latest
+            name: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # As in the job rust.
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ${{ matrix.name }}
+      - run: cargo test --workspace --locked
+      - run: cargo build --release --locked
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vtl-rs-${{ matrix.name }}
+          path: |
+            target/release/vtl-rs
+            target/release/vtl-rs.exe
+          if-no-files-found: error
+
+  # What the interpreter is built from: no dependency with a known
+  # vulnerability, only licenses, sources and crates that deny.toml allows.
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # Versions and checksums from the action's list, as above.
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-audit,cargo-deny
+      # Reads Cargo.lock.
+      - run: cargo audit
+      # Reads what is really built: advisories again, licenses, banned crates, sources.
+      - run: cargo deny check
+
+  # What a pull request adds to what vtl-rs is built from: Cargo and the
+  # actions. A new or raised dependency with a known vulnerability fails it,
+  # whether it ends up in the build or only runs while building.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+          fail-on-scopes: runtime, development, unknown
+
+  # The workflows themselves: zizmor looks for what makes a workflow unsafe,
+  # such as text from outside in a script, a token that may do more than it
+  # needs or stays behind for later steps, an action that is not pinned or
+  # has a known vulnerability. It also runs on schedule, for the advisories.
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # Version and checksum from the action's list, as in the job rust.
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: zizmor
+      # The token lets zizmor ask GitHub about the pinned actions (read only).
+      - run: zizmor --format github .github
+        env:
+          GH_TOKEN: ${{ github.token }}

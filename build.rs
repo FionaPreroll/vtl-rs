@@ -1,6 +1,10 @@
 use std::process::Command;
 
 fn main() {
+    // Only rebuild the information when the checked-out commit changes.
+    println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rerun-if-changed=build.rs");
+
     // Git information
     let git_hash = Command::new("git")
         .args(["rev-parse", "HEAD"])
@@ -8,10 +12,7 @@ fn main() {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
-    let build_time = chrono::Utc::now().to_rfc3339();
-
     println!("cargo:rustc-env=GIT_HASH={}", git_hash);
-    println!("cargo:rustc-env=BUILD_TIME={}", build_time);
 
     let rustc_version = Command::new("rustc")
         .arg("--version")

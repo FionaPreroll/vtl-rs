@@ -1,0 +1,25 @@
+# Updates for what vtl-rs is built from, once a month and one pull request per
+# ecosystem. Security updates come on their own whenever an advisory appears.
+# A version is only offered once it has been out for a week (cooldown): a
+# release that was taken over is usually found and pulled within days.
+# Security updates do not wait.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      cargo:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

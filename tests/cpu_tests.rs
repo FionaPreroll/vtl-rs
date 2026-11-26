@@ -7,7 +7,7 @@ mod cpu_tests {
     #[test]
     fn test_cpu_defaults() {
         let cpu = CPU::new();
-        assert_eq!(cpu.pemdas, false); // Ensure to default to Altair behavior
+        assert!(!cpu.pemdas); // Ensure to default to Altair behavior
     }
 
     #[test]

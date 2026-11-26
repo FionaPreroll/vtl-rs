@@ -132,7 +132,7 @@ impl CPU {
             ASTNode::NullaryOp { operator } => match operator {
                 Token::RandomNumber => {
                     let random_value = self.generate_random_number(); // Use
-                                                                      // PRNG
+                    // PRNG
                     Ok(random_value)
                 }
                 _ => Err("Unknown operator in NullaryOp".into()),
