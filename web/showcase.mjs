@@ -4,34 +4,13 @@
 //   node web/showcase.mjs _site
 // CHROMIUM names a Chromium to use instead of Playwright's own.
 
-import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { extname, join, resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { launch, serve } from './e2e/harness.mjs';
 
 const site = resolve(process.argv[2] ?? '_site');
-const types = {
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.mjs': 'text/javascript',
-  '.wasm': 'application/wasm',
-  '.svg': 'image/svg+xml',
-  '.woff2': 'font/woff2',
-};
-
-const server = createServer((request, response) => {
-  const path = new URL(request.url, 'http://localhost').pathname;
-  let file = join(site, decodeURIComponent(path));
-  if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
-  if (!file.startsWith(site) || !existsSync(file)) {
-    response.writeHead(404).end();
-    return;
-  }
-  response.writeHead(200, { 'content-type': types[extname(file)] ?? 'text/plain' });
-  createReadStream(file).pipe(response);
-});
-await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
-const base = `http://127.0.0.1:${server.address().port}/`;
+const server = await serve(site);
+const base = server.url;
 
 const shots = [
   { name: 'green', theme: 'green', example: 'primes.vtl' },
@@ -43,7 +22,7 @@ const shots = [
 
 const out = join(site, 'screenshots');
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
+const browser = await launch();
 let failed = false;
 for (const shot of shots) {
   const context = await browser.newContext(
@@ -52,7 +31,7 @@ for (const shot of shots) {
       : { viewport: { width: 1180, height: 900 }, deviceScaleFactor: 2 },
   );
   await context.addInitScript((theme) => {
-    localStorage.setItem('vtl-rs:settings', JSON.stringify({ theme }));
+    localStorage.setItem('vtl-rs:settings', JSON.stringify({ theme, baud: 0 }));
   }, shot.theme);
   const page = await context.newPage();
   page.on('pageerror', (error) => {

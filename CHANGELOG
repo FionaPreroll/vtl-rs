@@ -6,6 +6,7 @@
 - The VTL02 extensions `& | ^ [ ] { }` and `@`; `--strict` switches them off. `--precedence` replaces the former PEMDAS switch.
 - The command line program runs files, has `RUN`, `LIST`, `NEW`, `LOAD`, `SAVE`, `HELP` and `BYE`, stops a program on Ctrl-C and can print at the speed of a Teletype (`--baud`).
 - The web version on GitHub Pages: the machine as WebAssembly behind a front panel in the manner of the Altair, with CRT and Teletype themes, old and modern fonts, serial line speeds, examples, saving and sharing programs.
+- The web version starts as in 1977 (amber phosphor at 300 baud), has long bat-handle switches as on the Altair, lights that flicker with the lines a program runs, a cursor that can stop blinking, memory up to the 64 KB VTL-2 can address, full screen for the terminal alone or the whole machine, an About box with the build, and installs as an app that works offline. End-to-end tests in Chromium check every function of the page and that nothing on it moves or flickers.
 - CI as in rueder, release builds for Linux, macOS and Windows.
 
 ## 0.1.0 and earlier: the commit log

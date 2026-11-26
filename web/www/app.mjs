@@ -19,15 +19,18 @@ const AFTERGLOW = 0.8;
 
 // ---------------------------------------------------------------- settings
 
+// As a terminal of 1977 on the serial port of an Altair: amber phosphor at
+// 300 baud, 30 characters a second.
 const defaults = {
-  theme: 'green',
+  theme: 'amber',
   font: 'auto',
   size: 20,
-  baud: 0,
+  baud: 300,
   scanlines: true,
   glow: true,
   flicker: false,
   curve: true,
+  blink: true,
   upper: false,
   'show-panel': true,
   strict: false,
@@ -58,11 +61,14 @@ function applySettings() {
   body.dataset.theme = settings.theme;
   body.dataset.font = settings.font;
   body.style.setProperty('--size', `${settings.size}px`);
-  for (const fx of ['scanlines', 'glow', 'flicker', 'curve', 'upper']) {
+  for (const fx of ['scanlines', 'glow', 'flicker', 'curve', 'blink', 'upper']) {
     body.classList.toggle(`fx-${fx}`, settings[fx]);
   }
   $('panel').hidden = !settings['show-panel'];
   cps = settings.baud > 0 ? settings.baud / 10 : 0;
+  // The browser's and the phone's bars in the colour of the desk.
+  const bar = getComputedStyle(body).getPropertyValue('--desk').trim();
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar || '#000000');
   requestAnimationFrame(() => {
     screen.scrollTop = screen.scrollHeight;
   });
@@ -326,21 +332,30 @@ function key(code) {
   status = vtl.key(code);
 }
 
-function tick(now) {
+/** Notes what the program waits for, as soon as it waits. */
+function noteWait() {
   if (status === Status.KEY || status === Status.LINE) lastWait = status;
   else if (status === Status.READY) lastWait = Status.READY;
+}
+
+function tick(now) {
+  noteWait();
   if (status === Status.RUNNING && queue.length < 2048) {
     // In slices, with a look at the lines after each, so that the front
-    // panel shows what happened during the frame and not only its end.
+    // panel shows what happened during the frame and not only its end. The
+    // slices differ in length: of equal ones, a loop of two lines would
+    // always be caught at the same one.
     const start = performance.now();
-    const slice = Math.max(1, Math.round(budget / SAMPLES));
+    const slice = budget / SAMPLES;
     for (let i = 0; i < SAMPLES && status === Status.RUNNING; i++) {
-      status = vtl.run(slice);
+      status = vtl.run(Math.max(1, Math.round(slice * (0.5 + Math.random()))));
       sample(true);
     }
     const spent = performance.now() - start;
     budget = Math.max(1000, Math.min(5_000_000, Math.round(budget * (spent > FRAME_MS ? 0.7 : 1.3))));
     output(vtl.output());
+    // Keys typed before the next frame go to $ too.
+    noteWait();
   }
   if ((status === Status.READY || status === Status.LINE) && pendingLines.length && !queue) {
     submit(pendingLines.shift());
@@ -360,33 +375,12 @@ function tick(now) {
 
 // ---------------------------------------------------------------- the panel
 
-function ledRow(container, labels) {
-  return labels.map((label) => {
-    const cell = document.createElement('span');
-    cell.className = 'led-cell';
-    const led = document.createElement('span');
-    led.className = 'led';
-    const text = document.createElement('span');
-    text.className = 'led-label';
-    text.textContent = label;
-    cell.append(led, text);
-    container.append(cell);
-    return led;
-  });
-}
-
-const statusLeds = ledRow($('status-leds'), ['RUN', 'INP', 'OUT', 'HLTA']);
-const addressLeds = ledRow(
-  $('address-leds'),
-  Array.from({ length: 16 }, (_, i) => `A${15 - i}`),
-);
-const dataLeds = ledRow(
-  $('data-leds'),
-  Array.from({ length: 8 }, (_, i) => `D${7 - i}`),
-);
+// The lights are in the page from the start, so that the panel does not
+// grow when the script runs: status, then address A15 to A0, then data D7
+// to D0.
+const leds = [...document.querySelectorAll('#panel .led')];
 // Per LED (status, address, data): how often it was on in this frame's
 // samples, and how bright it glows.
-const leds = [...statusLeds, ...addressLeds, ...dataLeds];
 const hits = new Float32Array(leds.length);
 const glow = new Float32Array(leds.length);
 const shown = new Float32Array(leds.length);
@@ -578,8 +572,6 @@ function bindPrograms() {
     }
     focus();
   });
-  $('help').addEventListener('click', () => $('help-dialog').showModal());
-  $('help-dialog').addEventListener('close', focus);
 }
 
 function bindSwitches() {
@@ -614,11 +606,110 @@ function bindSwitches() {
   }
 }
 
+// ---------------------------------------------------------------- the page
+
+/** Full screen: 'display' (the terminal alone), 'machine' (all) or ''. */
+let fullscreen = false;
+
+function fullScreen(mode) {
+  const body = document.body;
+  body.classList.toggle('full-display', mode === 'display');
+  body.classList.toggle('full-machine', mode === 'machine');
+  const root = document.documentElement;
+  if (mode && !document.fullscreenElement && root.requestFullscreen) {
+    // Without it (iPhones) the page still fills the window.
+    root.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+  } else if (!mode && document.fullscreenElement) {
+    fullscreen = false;
+    document.exitFullscreen().catch(() => {});
+  }
+  requestAnimationFrame(() => {
+    screen.scrollTop = screen.scrollHeight;
+  });
+  focus();
+}
+
+let build;
+
+/** What web/build.sh wrote about the build, into the About box. */
+async function showBuild() {
+  build ??= fetch('build.json')
+    .then((response) => (response.ok ? response.json() : {}))
+    .catch(() => ({}));
+  const info = await build;
+  const field = (name) => document.querySelector(`[data-build="${name}"]`);
+  const link = (href, text) => {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = text;
+    return a;
+  };
+  if (info.version) field('version').textContent = info.version;
+  if (info.commit) {
+    const short = info.commit.slice(0, 7);
+    field('commit').replaceChildren(info.repository ? link(`${info.repository}/commit/${info.commit}`, short) : short);
+  }
+  if (info.branch) field('branch').textContent = info.branch;
+  if (info.built) {
+    const date = new Date(info.built);
+    field('built').textContent = Number.isNaN(date.valueOf())
+      ? info.built
+      : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  }
+  if (info.run) field('run').replaceChildren(info.runUrl ? link(info.runUrl, info.run) : info.run);
+}
+
+function bindPage() {
+  for (const button of document.querySelectorAll('[data-open]')) {
+    button.addEventListener('click', () => {
+      const dialog = $(button.dataset.open);
+      if (dialog.id === 'about-dialog') showBuild();
+      dialog.showModal();
+    });
+  }
+  for (const dialog of document.querySelectorAll('dialog')) dialog.addEventListener('close', focus);
+  $('full-display').addEventListener('click', () => fullScreen('display'));
+  $('full-machine').addEventListener('click', () => fullScreen('machine'));
+  $('leave-full').addEventListener('click', () => fullScreen(''));
+  document.addEventListener('fullscreenchange', () => {
+    // Left with Esc or the browser's own controls: the page too.
+    if (document.fullscreenElement) fullscreen = true;
+    else if (fullscreen) {
+      fullscreen = false;
+      fullScreen('');
+    }
+  });
+
+  // Installing as an app, where the browser offers it.
+  let offer = null;
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    offer = event;
+    $('install').hidden = false;
+  });
+  $('install').addEventListener('click', async () => {
+    if (!offer) return;
+    offer.prompt();
+    await offer.userChoice.catch(() => {});
+    offer = null;
+    $('install').hidden = true;
+    focus();
+  });
+  window.addEventListener('appinstalled', () => {
+    $('install').hidden = true;
+  });
+  // The page and the machine for offline use (sw.js).
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+
 // ---------------------------------------------------------------- start
 
 async function start() {
   applySettings();
   bindSettings();
+  bindPage();
   placeCursor();
   vtl = await Vtl.load(fetch('vtl_web.wasm'));
   vtl.reset(machineOptions());

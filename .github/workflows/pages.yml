@@ -3,10 +3,10 @@ name: Pages
 # The web version on GitHub Pages: the page with the machine as WebAssembly
 # (web/), the example programs, the documentation of the Rust library and
 # the pictures the README shows, at https://<owner>.github.io/<repository>/.
-# Every pull request builds it, tests the module in Node and takes the
-# pictures, so a page that cannot start turns the check red; a push to main
-# also publishes it. The pictures are taken anew each time and never
-# committed.
+# Every pull request builds it, tests the module in Node and the page in
+# Chromium, and takes the pictures, so a page that does not work turns the
+# check red; a push to main also publishes it. The pictures are taken anew
+# each time and never committed.
 on:
   push:
     branches: [main]
@@ -41,8 +41,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      # The page, the module and the examples into _site.
+      # The page, the module and the examples into _site, with the commit
+      # and branch of a pull request rather than of its merge for the About
+      # box (build.json).
       - run: web/build.sh _site
+        env:
+          BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
       # The module through web/www/vtl.mjs, as the page uses it.
       - run: node --test web/test/*.test.mjs
       # The library's documentation. A doc comment with a broken link or HTML
@@ -55,6 +60,11 @@ jobs:
       - run: npm ci
         working-directory: web
       - run: npx playwright install --with-deps chromium
+        working-directory: web
+      # The page in Chromium, end to end (web/e2e): the terminal, the front
+      # panel, the settings, the programs, the app, and that nothing on the
+      # page moves or flickers that should stay put.
+      - run: npm run e2e
         working-directory: web
       - run: node showcase.mjs ../_site
         working-directory: web

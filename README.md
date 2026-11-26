@@ -7,7 +7,7 @@
 
 **Try it: [fionapreroll.github.io/vtl-rs](https://fionapreroll.github.io/vtl-rs/)**
 
-![The web version with a green phosphor screen and the front panel](https://fionapreroll.github.io/vtl-rs/screenshots/green.png)
+![The web version with an amber phosphor screen and the front panel](https://fionapreroll.github.io/vtl-rs/screenshots/amber.png)
 
 ![Introduction excerpt from the VTL-2 manual. Source: [1]](./doc/vtl2intro.png)
 
@@ -42,7 +42,7 @@ Every line is one assignment. `?=` prints, `#=` jumps (and `#=0` does not, which
 
 ## In the browser
 
-[The web version](https://fionapreroll.github.io/vtl-rs/) runs the same interpreter as WebAssembly behind a front panel in the manner of the Altair, whose lights show the line that runs and the value stored last. Its terminal is a CRT with green, amber or white phosphor (with scan lines, glow and curved glass, each optional), the blue of the Altair, the paper of a Teletype ASR-33, or plainly modern in dark or light. The fonts are VT323, Courier Prime, Share Tech Mono, IBM Plex Mono or the system's own, and output can come at the speed of a serial line down to the ASR-33's 110 baud. It loads the examples and files, saves programs in the browser (`SAVE`, `LOAD`, `DIR`) or as files, and shares a program as a link. [web/README.md](web/README.md) says how it is built.
+[The web version](https://fionapreroll.github.io/vtl-rs/) runs the same interpreter as WebAssembly behind a front panel in the manner of the Altair, whose lights show the line that runs and the value stored last. Its terminal is a CRT with green, amber or white phosphor (with scan lines, glow and curved glass, each optional), the blue of the Altair, the paper of a Teletype ASR-33, or plainly modern in dark or light. The fonts are VT323, Courier Prime, Share Tech Mono, IBM Plex Mono or the system's own, and output can come at the speed of a serial line down to the ASR-33's 110 baud. It starts as in 1977, in amber at 300 baud. It loads the examples and files, saves programs in the browser (`SAVE`, `LOAD`, `DIR`) or as files, shares a program as a link, fills the screen with the terminal alone or the whole machine, and installs as an app that works offline. [web/README.md](web/README.md) says how it is built and tested.
 
 | Teletype ASR-33 | Amber phosphor | Altair blue |
 | --- | --- | --- |
