@@ -14,6 +14,16 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
+  # Playwright, which takes the pictures of the web version.
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

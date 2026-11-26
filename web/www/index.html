@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VTL-RS · Very Tiny Language</title>
+    <meta
+      name="description"
+      content="VTL-2, the Very Tiny Language of the Altair 680 (1977), in the browser: a retro terminal with themes, fonts and a front panel."
+    />
+    <meta name="theme-color" content="#1d3f8f" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preload" href="vtl_web.wasm" as="fetch" type="application/wasm" crossorigin />
+    <script type="module" src="app.mjs"></script>
+  </head>
+  <body data-theme="green" data-font="auto">
+    <main class="machine">
+      <section class="panel" id="panel" aria-label="Front panel">
+        <header class="panel-top">
+          <span class="brand">VTL·RS</span>
+          <span class="model">VERY TINY LANGUAGE</span>
+          <span class="maker">1977 · 2026</span>
+        </header>
+        <div class="panel-body">
+          <div class="group" aria-label="Status lights">
+            <div class="leds" id="status-leds"></div>
+          </div>
+          <div class="group wide" aria-label="Address lights: the line that runs">
+            <div class="leds" id="address-leds"></div>
+          </div>
+          <div class="group" aria-label="Data lights: the value stored last">
+            <div class="leds" id="data-leds"></div>
+          </div>
+          <div class="switches" role="toolbar" aria-label="Switches">
+            <button type="button" class="switch" data-action="stop" title="Stop the program (Ctrl-C or Esc)">
+              <span class="lever"></span><span class="label">STOP</span>
+            </button>
+            <button type="button" class="switch" data-action="run" title="Run the program from its first line">
+              <span class="lever"></span><span class="label">RUN</span>
+            </button>
+            <button type="button" class="switch" data-action="list" title="List the program">
+              <span class="lever"></span><span class="label">LIST</span>
+            </button>
+            <button type="button" class="switch" data-action="clear" title="Clear the screen (or the paper)">
+              <span class="lever"></span><span class="label">CLEAR</span>
+            </button>
+            <button type="button" class="switch" data-action="reset" title="Reset: forget the program and all variables">
+              <span class="lever"></span><span class="label">RESET</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="terminal" id="terminal">
+        <div class="bezel">
+          <div class="screen" id="screen" tabindex="0" role="log" aria-label="Terminal"></div>
+          <div class="glass" aria-hidden="true"></div>
+        </div>
+        <textarea
+          id="keys"
+          class="keys"
+          aria-label="Keyboard"
+          autocapitalize="off"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          rows="1"
+        ></textarea>
+      </section>
+
+      <section class="controls" aria-label="Settings">
+        <div class="row">
+          <label>Program
+            <select id="example">
+              <option value="">Load an example…</option>
+            </select>
+          </label>
+          <button type="button" id="open">Open file…</button>
+          <input type="file" id="file" accept=".vtl,.txt,text/plain" hidden />
+          <button type="button" id="download">Save file</button>
+          <button type="button" id="share">Copy link</button>
+          <button type="button" id="help">Help</button>
+        </div>
+        <div class="row">
+          <label>Theme
+            <select id="theme">
+              <option value="teletype">Teletype ASR-33 (paper)</option>
+              <option value="green">Green phosphor (P1)</option>
+              <option value="amber">Amber phosphor (P3)</option>
+              <option value="white">White phosphor (P4)</option>
+              <option value="blue">Altair blue</option>
+              <option value="dark">Modern dark</option>
+              <option value="light">Modern light</option>
+            </select>
+          </label>
+          <label>Font
+            <select id="font">
+              <option value="auto">As the theme</option>
+              <option value="vt323">VT323 (DEC terminal)</option>
+              <option value="courier">Courier Prime (Teletype)</option>
+              <option value="sharetech">Share Tech Mono</option>
+              <option value="plex">IBM Plex Mono</option>
+              <option value="system">System monospace</option>
+            </select>
+          </label>
+          <label>Size
+            <input type="range" id="size" min="12" max="32" step="1" value="20" />
+          </label>
+          <label>Speed
+            <select id="baud">
+              <option value="0">Unlimited</option>
+              <option value="19200">19200 baud</option>
+              <option value="9600">9600 baud</option>
+              <option value="1200">1200 baud</option>
+              <option value="300">300 baud</option>
+              <option value="110">110 baud (ASR-33)</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="scanlines" checked /> Scan lines</label>
+          <label class="check"><input type="checkbox" id="glow" checked /> Glow</label>
+          <label class="check"><input type="checkbox" id="flicker" /> Flicker</label>
+          <label class="check"><input type="checkbox" id="curve" checked /> Curved glass</label>
+          <label class="check"><input type="checkbox" id="upper" /> Upper case only</label>
+          <label class="check"><input type="checkbox" id="show-panel" checked /> Front panel</label>
+        </div>
+        <div class="row">
+          <label class="check" title="Only the VTL-2 of the Altair 680, without the VTL02 extensions & | ^ [ ] { } and @">
+            <input type="checkbox" id="strict" /> Strict VTL-2
+          </label>
+          <label class="check" title="* and / before + and -, instead of strictly left to right">
+            <input type="checkbox" id="precedence" /> Operator precedence
+          </label>
+          <label>Memory
+            <select id="memory">
+              <option value="1024">1 KB</option>
+              <option value="2048">2 KB</option>
+              <option value="4096">4 KB</option>
+              <option value="8192">8 KB</option>
+              <option value="16384">16 KB</option>
+              <option value="32768" selected>32 KB</option>
+              <option value="65535">64 KB</option>
+            </select>
+          </label>
+          <span class="speed" id="speed" aria-live="off"></span>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <a href="https://github.com/FionaPreroll/vtl-rs">Source and command line program</a> ·
+        <a href="https://github.com/FionaPreroll/vtl-rs/blob/main/docs/language.md">The language</a> ·
+        <a href="api/vtl_rs/">Rust API</a> ·
+        GPL-3.0; fonts under the <a href="fonts/vt323-OFL.txt">SIL Open Font License</a>
+      </footer>
+    </main>
+
+    <dialog id="help-dialog">
+      <h2>VTL-2 in short</h2>
+      <table>
+        <tr><td><code>10 A=1</code></td><td>stores line 10; <code>10</code> alone deletes it; <code>0</code> lists the program</td></tr>
+        <tr><td><code>?=A</code> <code>?="HI"</code></td><td>prints a number or text; <code>?="HI";</code> keeps the line open</td></tr>
+        <tr><td><code>A=?</code> <code>A=$</code> <code>$=65</code></td><td>reads a number or a key, prints a character</td></tr>
+        <tr><td><code>#=100</code></td><td>goes to line 100; <code>#=0</code> does nothing, so <code>#=X&gt;5*100</code> is an IF</td></tr>
+        <tr><td><code>#=!</code></td><td>returns to the line after the last jump</td></tr>
+        <tr><td><code>:I)=5</code></td><td>array element <code>I</code>, in memory from <code>&amp;</code> up to <code>*</code></td></tr>
+        <tr><td><code>+ - * / = &lt; &gt;</code></td><td>strictly left to right; <code>&gt;</code> is ≥; <code>%</code> is the last remainder</td></tr>
+        <tr><td><code>'</code> <code>&amp;</code> <code>*</code></td><td>a random number, the end of the program, the end of memory</td></tr>
+        <tr><td><code>)</code></td><td>a comment</td></tr>
+      </table>
+      <p>
+        Commands: <code>RUN</code>, <code>LIST</code>, <code>NEW</code>, <code>SAVE name</code>, <code>LOAD name</code>
+        (in this browser), <code>DIR</code>, <code>CLS</code>, <code>HELP</code>. Ctrl-C or Esc stops a program, ↑ and ↓ bring
+        back earlier lines.
+      </p>
+      <p>
+        The whole language: <a href="https://github.com/FionaPreroll/vtl-rs/blob/main/docs/language.md">docs/language.md</a>.
+        The source and the command line program for Linux, macOS and Windows:
+        <a href="https://github.com/FionaPreroll/vtl-rs">github.com/FionaPreroll/vtl-rs</a>.
+      </p>
+      <form method="dialog"><button>Close</button></form>
+    </dialog>
+
+    <noscript><p class="noscript">This page needs JavaScript and WebAssembly.</p></noscript>
+  </body>
+</html>

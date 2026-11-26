@@ -12,6 +12,9 @@ keywords = ["vtl", "interpreter", "altair", "retro", "language"]
 categories = ["command-line-utilities", "emulators"]
 build = "build.rs"
 
+[workspace]
+members = [".", "web"]
+
 [lib]
 name = "vtl_rs"
 path = "src/lib.rs"

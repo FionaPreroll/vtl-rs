@@ -1,0 +1,16 @@
+{
+  "name": "vtl-rs-web",
+  "private": true,
+  "description": "Tests and pictures of the web version of vtl-rs; the page itself needs no packages.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "showcase": "node showcase.mjs ../_site"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

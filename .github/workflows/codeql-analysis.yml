@@ -22,10 +22,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The interpreter (rust) and the workflows themselves (actions) are
-        # analysed from their source.
+        # The interpreter (rust), the web page (javascript-typescript) and the
+        # workflows themselves (actions) are analysed from their source.
         include:
           - language: actions
+            build-mode: none
+          - language: javascript-typescript
             build-mode: none
           - language: rust
             build-mode: none

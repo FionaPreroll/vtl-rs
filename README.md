@@ -3,7 +3,11 @@
 [![CI](https://github.com/FionaPreroll/vtl-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/FionaPreroll/vtl-rs/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/FionaPreroll/vtl-rs/graph/badge.svg)](https://codecov.io/gh/FionaPreroll/vtl-rs)
 
-*vtl-rs* is a Rust implementation of the *Very Tiny Language (VTL-2)*, a minimalist language written in 1977 by Frank McCoy and Gary Shannon for the Altair 680, where the whole interpreter fit into 768 bytes. It runs classic VTL-2 programs as the original did, as a small and fast command line program for Linux, macOS and Windows.
+*vtl-rs* is a Rust implementation of the *Very Tiny Language (VTL-2)*, a minimalist language written in 1977 by Frank McCoy and Gary Shannon for the Altair 680, where the whole interpreter fit into 768 bytes. It runs classic VTL-2 programs as the original did, as a small and fast command line program for Linux, macOS and Windows, and in the browser.
+
+**Try it: [fionapreroll.github.io/vtl-rs](https://fionapreroll.github.io/vtl-rs/)**
+
+![The web version with a green phosphor screen and the front panel](https://fionapreroll.github.io/vtl-rs/screenshots/green.png)
 
 ![Introduction excerpt from the VTL-2 manual. Source: [1]](./doc/vtl2intro.png)
 
@@ -35,6 +39,14 @@ Every line is one assignment. `?=` prints, `#=` jumps (and `#=0` does not, which
 - About 30 million statements a second on a laptop, a 64 KB address space and no dependencies in the interpreter itself.
 - An interactive machine with line editing and history, `RUN`, `LIST`, `NEW`, `LOAD`, `SAVE` and `HELP`, Ctrl-C to stop a program.
 - `--baud 110` prints as slowly as a Teletype ASR-33.
+
+## In the browser
+
+[The web version](https://fionapreroll.github.io/vtl-rs/) runs the same interpreter as WebAssembly behind a front panel in the manner of the Altair, whose lights show the line that runs and the value stored last. Its terminal is a CRT with green, amber or white phosphor (with scan lines, glow and curved glass, each optional), the blue of the Altair, the paper of a Teletype ASR-33, or plainly modern in dark or light. The fonts are VT323, Courier Prime, Share Tech Mono, IBM Plex Mono or the system's own, and output can come at the speed of a serial line down to the ASR-33's 110 baud. It loads the examples and files, saves programs in the browser (`SAVE`, `LOAD`, `DIR`) or as files, and shares a program as a link. [web/README.md](web/README.md) says how it is built.
+
+| Teletype ASR-33 | Amber phosphor | Altair blue |
+| --- | --- | --- |
+| ![Teletype theme](https://fionapreroll.github.io/vtl-rs/screenshots/teletype.png) | ![Amber theme](https://fionapreroll.github.io/vtl-rs/screenshots/amber.png) | ![Blue theme](https://fionapreroll.github.io/vtl-rs/screenshots/blue.png) |
 
 ## Install
 
@@ -87,7 +99,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-After changing `Cargo.toml` or `Cargo.lock`, also `cargo audit` and `cargo deny check` (exceptions go into `deny.toml` with their reason). `./pre-commit.sh install` runs the checks before every commit. The expected output of the examples is in `tests/expected/`.
+For the web version, `web/build.sh` and then `node --test web/test/*.test.mjs`. After changing `Cargo.toml` or `Cargo.lock`, also `cargo audit` and `cargo deny check` (exceptions go into `deny.toml` with their reason). `./pre-commit.sh install` runs the checks before every commit. The expected output of the examples is in `tests/expected/`.
 
 ## References
 

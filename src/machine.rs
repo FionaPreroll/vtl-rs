@@ -420,6 +420,20 @@ impl Machine {
         self.core.amp() > PROGRAM_START
     }
 
+    /// Takes one key press for `$`, as a terminal sends it (13 for Return).
+    /// Keys pressed while no `$` waits are kept for the next one, until the
+    /// program ends.
+    pub fn input_char(&mut self, key: u8) -> Status {
+        if matches!(self.exec, Exec::Idle) {
+            return Status::Ready;
+        }
+        self.core.chars_in.push_back(key);
+        if self.waiting == Some(Status::NeedChar) {
+            self.waiting = None;
+        }
+        self.status()
+    }
+
     /// Takes a line from the user: at the prompt a program line, a direct
     /// statement or one of the commands `LIST`, `RUN` and `NEW`; while a
     /// statement waits for input, that input.

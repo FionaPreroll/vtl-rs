@@ -199,6 +199,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vtl-web"
+version = "0.2.0"
+dependencies = [
+ "vtl-rs",
+]
+
+[[package]]
 name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

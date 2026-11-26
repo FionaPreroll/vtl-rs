@@ -361,3 +361,19 @@ fn star_and_ampersand() {
     assert_eq!(session(&mut vtl, &["?=*", "?=\" \";", "?=&"]), "4096 264");
     assert_eq!(vtl.free(), 4096 - 264);
 }
+
+#[test]
+fn key_presses_one_by_one() {
+    let mut vtl = machine();
+    vtl.enter("10 A=$");
+    vtl.enter("20 B=$");
+    vtl.enter("30 ?=A*0+B");
+    assert_eq!(vtl.input_char(b'X'), Status::Ready, "nothing runs yet");
+    vtl.enter("RUN");
+    assert_eq!(vtl.run(100), Status::NeedChar);
+    assert_eq!(vtl.input_char(b'X'), Status::Running);
+    // Pressed before the program asks: kept for the next $.
+    assert_eq!(vtl.input_char(b'Y'), Status::Running);
+    assert_eq!(vtl.run(100), Status::Ready);
+    assert_eq!(vtl.take_output(), b"89");
+}

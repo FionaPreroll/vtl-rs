@@ -127,8 +127,8 @@ jobs:
       # Reads what is really built: advisories again, licenses, banned crates, sources.
       - run: cargo deny check
 
-  # What a pull request adds to what vtl-rs is built from: Cargo and the
-  # actions. A new or raised dependency with a known vulnerability fails it,
+  # What a pull request adds to what vtl-rs is built from: Cargo, npm and
+  # the actions. A new or raised dependency with a known vulnerability fails it,
   # whether it ends up in the build or only runs while building.
   dependency-review:
     if: github.event_name == 'pull_request'
