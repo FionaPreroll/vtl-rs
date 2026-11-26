@@ -208,6 +208,24 @@ fn strict_dialect_keeps_at_as_a_variable() {
 }
 
 #[test]
+fn current_line_follows_the_program() {
+    let mut vtl = machine();
+    vtl.enter("10 A=A+1");
+    vtl.enter("20 #=10");
+    assert_eq!(vtl.current_line(), 0);
+    vtl.enter("#=1");
+    let seen: Vec<u16> = (0..4)
+        .map(|_| {
+            vtl.run(1);
+            vtl.current_line()
+        })
+        .collect();
+    assert_eq!(seen, [10, 20, 10, 20]);
+    vtl.stop();
+    assert_eq!(vtl.current_line(), 0);
+}
+
+#[test]
 fn line_input() {
     let mut vtl = machine();
     vtl.enter("10 A=?");

@@ -367,10 +367,11 @@ impl Machine {
         self.core.mem[usize::from(addr)]
     }
 
-    /// The line number that runs now, 0 when no program runs.
+    /// The line number that runs now (or next, between two statements, or
+    /// waits for input), 0 when no program runs.
     pub fn current_line(&self) -> u16 {
         match self.exec {
-            Exec::Program { .. } => self.core.vars[POUND],
+            Exec::Program { number, .. } => number,
             _ => 0,
         }
     }

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
+    "e2e": "node --test e2e/*.test.mjs",
     "showcase": "node showcase.mjs ../_site"
   },
   "devDependencies": {

@@ -138,11 +138,14 @@ pub extern "C" fn vtl_new() {
     with(|s| s.machine.new_program());
 }
 
-/// The line that runs, or ran last (`#`): the front panel's address lights.
-/// 0 after a statement typed at the prompt.
+/// The line that runs (or runs next), else the one that ran last (`#`): the
+/// front panel's address lights. 0 after a statement typed at the prompt.
 #[unsafe(no_mangle)]
 pub extern "C" fn vtl_line() -> u32 {
-    with(|s| u32::from(s.machine.var(b'#')))
+    with(|s| match s.machine.current_line() {
+        0 => u32::from(s.machine.var(b'#')),
+        line => u32::from(line),
+    })
 }
 
 /// The value last stored: the front panel's data lights.
