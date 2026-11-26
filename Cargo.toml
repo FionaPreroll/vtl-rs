@@ -1,0 +1,23 @@
+[package]
+name = "vtl-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Fiona <fipreroll+app@gmail.com>"]
+repository = "https://github.com/FionaPreroll/vtl-rs"
+description = "Very Tiny Language (VTL) in Rust, inspired by the historical VTL-2 on Altair 680b and others."
+license = "GPL-3.0-only"
+build = "build.rs"
+
+[lib]
+name = "vtl_rs"
+path = "src/lib.rs"
+
+[dependencies]
+dirs = "5.0.1"
+flexi_logger = "0.29.1"
+log = "0.4.22"
+rand = "0.8.5"
+rustyline = "14.0.0"
+
+[build-dependencies]
+chrono = "0.4.38"
