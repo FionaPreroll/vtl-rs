@@ -221,19 +221,25 @@ body {
 }
 
 .led {
+  position: relative;
   width: 11px;
   height: 11px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #7a2620, #3c0d0a 70%);
   box-shadow: 0 0 0 1.5px #2a2a2a;
-  transition: background 60ms;
 }
 
-.led.on {
+/* The lit LED over the dark one, as bright as --b (0 to 1): a bit that
+   changes while a program runs glows dimmer than one that stays set, and
+   every LED glows on for a moment after it went out. */
+.led::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #ffd0b8, #ff3218 45%, #b81000);
-  box-shadow:
-    0 0 0 1.5px #2a2a2a,
-    0 0 8px 2px rgb(255 50 24 / 70%);
+  box-shadow: 0 0 8px 2px rgb(255 50 24 / 70%);
+  opacity: var(--b, 0);
 }
 
 .led-label {

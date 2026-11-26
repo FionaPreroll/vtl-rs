@@ -12,6 +12,10 @@ const STORE = 'vtl-rs:';
 const MAX_LINES = 3000;
 /** Milliseconds of work per frame for the machine. */
 const FRAME_MS = 10;
+/** Looks at the front panel's lines per frame while a program runs. */
+const SAMPLES = 16;
+/** How much of an LED's glow is left after a frame once it went out. */
+const AFTERGLOW = 0.8;
 
 // ---------------------------------------------------------------- settings
 
@@ -326,8 +330,14 @@ function tick(now) {
   if (status === Status.KEY || status === Status.LINE) lastWait = status;
   else if (status === Status.READY) lastWait = Status.READY;
   if (status === Status.RUNNING && queue.length < 2048) {
+    // In slices, with a look at the lines after each, so that the front
+    // panel shows what happened during the frame and not only its end.
     const start = performance.now();
-    status = vtl.run(budget);
+    const slice = Math.max(1, Math.round(budget / SAMPLES));
+    for (let i = 0; i < SAMPLES && status === Status.RUNNING; i++) {
+      status = vtl.run(slice);
+      sample(true);
+    }
     const spent = performance.now() - start;
     budget = Math.max(1000, Math.min(5_000_000, Math.round(budget * (spent > FRAME_MS ? 0.7 : 1.3))));
     output(vtl.output());
@@ -374,23 +384,38 @@ const dataLeds = ledRow(
   $('data-leds'),
   Array.from({ length: 8 }, (_, i) => `D${7 - i}`),
 );
-let shown = [];
+// Per LED (status, address, data): how often it was on in this frame's
+// samples, and how bright it glows.
+const leds = [...statusLeds, ...addressLeds, ...dataLeds];
+const hits = new Float32Array(leds.length);
+const glow = new Float32Array(leds.length);
+const shown = new Float32Array(leds.length);
+let samples = 0;
+
+/** Notes which LEDs are on now. */
+function sample(running = status === Status.RUNNING) {
+  const waiting = status === Status.LINE || status === Status.KEY;
+  const state = [running, waiting, queue.length > 0, status === Status.READY && !queue];
+  state.forEach((on, i) => {
+    if (on) hits[i] += 1;
+  });
+  const line = vtl.line();
+  for (let bit = 0; bit < 16; bit++) if ((line >> (15 - bit)) & 1) hits[4 + bit] += 1;
+  const value = vtl.value() & 0xff;
+  for (let bit = 0; bit < 8; bit++) if ((value >> (7 - bit)) & 1) hits[20 + bit] += 1;
+  samples += 1;
+}
 
 function lights() {
-  const waiting = status === Status.LINE || status === Status.KEY;
-  const state = [
-    status === Status.RUNNING,
-    waiting,
-    queue.length > 0,
-    status === Status.READY && !queue,
-    vtl.line(),
-    vtl.value() & 0xff,
-  ];
-  if (state.every((v, i) => v === shown[i])) return;
-  shown = state;
-  state.slice(0, 4).forEach((on, i) => statusLeds[i].classList.toggle('on', on));
-  addressLeds.forEach((led, i) => led.classList.toggle('on', ((state[4] >> (15 - i)) & 1) === 1));
-  dataLeds.forEach((led, i) => led.classList.toggle('on', ((state[5] >> (7 - i)) & 1) === 1));
+  if (samples === 0) sample();
+  for (let i = 0; i < leds.length; i++) {
+    glow[i] = Math.max(hits[i] / samples, glow[i] * AFTERGLOW);
+    const b = glow[i] < 0.03 ? 0 : Math.round(glow[i] * 40) / 40;
+    if (b !== shown[i]) leds[i].style.setProperty('--b', String(b));
+    shown[i] = b;
+    hits[i] = 0;
+  }
+  samples = 0;
 }
 
 // ---------------------------------------------------------------- keyboard
