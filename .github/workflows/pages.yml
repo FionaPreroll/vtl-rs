@@ -1,0 +1,82 @@
+name: Pages
+
+# The web version on GitHub Pages: the page with the machine as WebAssembly
+# (web/), the example programs, the documentation of the Rust library and
+# the pictures the README shows, at https://<owner>.github.io/<repository>/.
+# Every pull request builds it, tests the module in Node and takes the
+# pictures, so a page that cannot start turns the check red; a push to main
+# also publishes it. The pictures are taken anew each time and never
+# committed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# What every job may do with the repository's token unless it says more: read.
+# Only deploy writes, and only to Pages. No checkout keeps the token in
+# .git/config (persist-credentials), as in ci.yml.
+permissions:
+  contents: read
+
+# A newer push to a pull request stops the older run; on main every run
+# finishes, and deploy-pages publishes them one after the other.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # As in ci.yml, with the target for WebAssembly. No cache: what is
+      # published is built from the commit alone.
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # The page, the module and the examples into _site.
+      - run: web/build.sh _site
+      # The module through web/www/vtl.mjs, as the page uses it.
+      - run: node --test web/test/*.test.mjs
+      # The library's documentation. A doc comment with a broken link or HTML
+      # that rustdoc cannot read fails here.
+      - run: cargo doc --no-deps --lib -p vtl-rs --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cp -R target/doc _site/api
+      # The README's pictures, of the site just built (web/showcase.mjs).
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: node showcase.mjs ../_site
+        working-directory: web
+      # Also on pull requests: the run's artifact github-pages is the site as
+      # it would be published, to look at before merging.
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  # Only from main. The repository's Settings, Pages, has to name "GitHub
+  # Actions" as the source once; the environment github-pages that GitHub then
+  # makes lets only the default branch publish.
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: site
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # to publish the site
+      id-token: write # for the token deploy-pages proves this run with
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

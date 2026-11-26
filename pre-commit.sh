@@ -10,13 +10,13 @@ fi
 
 # Check formatting with cargo fmt
 echo "Running cargo fmt..."
-cargo fmt -- --check
+cargo fmt --all --check
 
 # Run clippy for linting
 echo "Running cargo clippy..."
-cargo clippy -- -D warnings
+cargo clippy --workspace --all-targets -- -D warnings
 
 # Optionally run other checks or tests
 echo "Running cargo test..."
-cargo test
+cargo test --workspace
 

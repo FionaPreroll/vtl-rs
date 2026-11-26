@@ -1,0 +1,15 @@
+[package]
+name = "vtl-web"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.85"
+description = "vtl-rs in the browser: the machine as WebAssembly, for web/www."
+license = "GPL-3.0-only"
+publish = false
+
+[lib]
+# A cdylib is the WebAssembly module; rlib lets the tests call it natively.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vtl-rs = { path = "..", default-features = false }

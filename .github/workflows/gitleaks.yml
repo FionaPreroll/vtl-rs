@@ -1,0 +1,36 @@
+name: gitleaks
+# Every commit of a pull request, and what lands on main. Pushes to other
+# branches are checked with their pull request. Nothing runs on a schedule:
+# the history does not change, and gitleaks only finds something new in it
+# with a new version, which comes with an update of the action.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    # It reads the commits, of a pull request too, and changes nothing.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The version of gitleaks is the one the action names at this commit, so
+      # Dependabot raises it with the action. The job can only read, so a bad
+      # download could at worst miss a secret.
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          # For the list of a pull request's commits.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The token may not comment; a finding fails the check instead.
+          GITLEAKS_ENABLE_COMMENTS: "false"

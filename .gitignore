@@ -1,3 +1,5 @@
 /target
+/_site
+node_modules/
 
 history.txt

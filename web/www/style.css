@@ -1,0 +1,599 @@
+/* The page of vtl-rs: a front panel in the manner of the Altair, a terminal
+   that is a CRT or a Teletype's paper, and the settings below. Themes only
+   set the variables at the top. */
+
+@font-face {
+  font-family: 'VT323';
+  src: url('fonts/VT323-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Courier Prime';
+  src: url('fonts/CourierPrime-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: url('fonts/ShareTechMono-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('fonts/IBMPlexMono-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --size: 20px;
+  --desk: #161616;
+  --desk-text: #c9c4b8;
+  --screen: #031008;
+  --ink: #3bff6f;
+  --dim: #1d7a3a;
+  --glow: rgb(59 255 111 / 55%);
+  --cursor: var(--ink);
+  --bezel: #2a2a28;
+  --theme-font: 'VT323';
+  --line-height: 1.15;
+  --scale: 1.25;
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------ themes */
+
+[data-theme='green'] {
+  --screen: #031008;
+  --ink: #3bff6f;
+  --glow: rgb(59 255 111 / 55%);
+}
+[data-theme='amber'] {
+  --screen: #120a00;
+  --ink: #ffb21c;
+  --glow: rgb(255 170 20 / 55%);
+}
+[data-theme='white'] {
+  --screen: #0b0d10;
+  --ink: #e4ecff;
+  --glow: rgb(190 210 255 / 50%);
+}
+[data-theme='blue'] {
+  --screen: #10275e;
+  --ink: #f1ead6;
+  --glow: rgb(241 234 214 / 35%);
+  --theme-font: 'Share Tech Mono';
+  --scale: 1;
+}
+[data-theme='teletype'] {
+  --desk: #2b2622;
+  --screen: #f3ead3;
+  --ink: #26231f;
+  --glow: transparent;
+  --cursor: #8a2a1a;
+  --bezel: #7d8178;
+  --theme-font: 'Courier Prime';
+  --scale: 1;
+  --line-height: 1.3;
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  --desk: #11111b;
+  --screen: #1e1e2e;
+  --ink: #cdd6f4;
+  --glow: transparent;
+  --cursor: #f5c2e7;
+  --bezel: #181825;
+  --theme-font: 'IBM Plex Mono';
+  --scale: 0.9;
+  --line-height: 1.4;
+}
+[data-theme='light'] {
+  --desk: #e9e7e1;
+  --desk-text: #2b2b2b;
+  --screen: #fdfdfb;
+  --ink: #1f2328;
+  --glow: transparent;
+  --cursor: #0b57d0;
+  --bezel: #cfccc4;
+  --theme-font: 'IBM Plex Mono';
+  --scale: 0.9;
+  --line-height: 1.4;
+  color-scheme: light;
+}
+
+/* A font chosen by hand replaces the theme's, with its own proportions. */
+[data-font='vt323'] {
+  --theme-font: 'VT323';
+  --scale: 1.25;
+}
+[data-font='courier'] {
+  --theme-font: 'Courier Prime';
+  --scale: 1;
+}
+[data-font='sharetech'] {
+  --theme-font: 'Share Tech Mono';
+  --scale: 1;
+}
+[data-font='plex'] {
+  --theme-font: 'IBM Plex Mono';
+  --scale: 0.9;
+}
+[data-font='system'] {
+  --theme-font: ui-monospace;
+  --scale: 0.9;
+}
+
+/* ------------------------------------------------------------ page */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: radial-gradient(ellipse at top, color-mix(in srgb, var(--desk), white 6%), var(--desk) 70%);
+  color: var(--desk-text);
+  font: 15px/1.4 system-ui, sans-serif;
+}
+
+.machine {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1100px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+/* ------------------------------------------------------------ front panel */
+
+.panel {
+  border-radius: 6px;
+  overflow: hidden;
+  background: linear-gradient(#d7d6cf, #c3c2ba);
+  box-shadow:
+    0 2px 0 #fff4 inset,
+    0 10px 30px #0008;
+  color: #14306e;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  user-select: none;
+}
+
+.panel-top {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 8px 16px 6px;
+  background: linear-gradient(#2350a8, #1d3f8f);
+  color: #f4f3ee;
+  border-bottom: 3px solid #0f2457;
+}
+
+.brand {
+  font-weight: 800;
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: 1px;
+}
+
+.model {
+  font-size: 12px;
+  letter-spacing: 3px;
+}
+
+.maker {
+  margin-inline-start: auto;
+  font-size: 11px;
+  letter-spacing: 2px;
+  opacity: 0.8;
+}
+
+.panel-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 18px;
+  padding: 12px 16px 10px;
+}
+
+.group {
+  border: 1.5px solid #14306e88;
+  border-radius: 3px;
+  padding: 6px 8px 3px;
+}
+
+.leds {
+  display: flex;
+  gap: 4px;
+}
+
+.led-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 22px;
+}
+
+.led {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #7a2620, #3c0d0a 70%);
+  box-shadow: 0 0 0 1.5px #2a2a2a;
+  transition: background 60ms;
+}
+
+.led.on {
+  background: radial-gradient(circle at 35% 35%, #ffd0b8, #ff3218 45%, #b81000);
+  box-shadow:
+    0 0 0 1.5px #2a2a2a,
+    0 0 8px 2px rgb(255 50 24 / 70%);
+}
+
+.led-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Every fourth address light starts a group, as on the real panels. */
+#address-leds .led-cell:nth-child(4n + 1):not(:first-child),
+#data-leds .led-cell:nth-child(4n + 1):not(:first-child) {
+  margin-inline-start: 6px;
+}
+
+.switches {
+  display: flex;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+
+.switch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.switch .lever {
+  position: relative;
+  width: 14px;
+  height: 30px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #8b8b8b, #f2f2f2 45%, #9a9a9a);
+  box-shadow:
+    0 0 0 2px #555,
+    0 3px 4px #0006;
+}
+
+.switch .lever::after {
+  content: '';
+  position: absolute;
+  inset: 4px 2px 50% 2px;
+  border-radius: 5px;
+  background: linear-gradient(#fff, #b5b5b5);
+  transition: inset 120ms;
+}
+
+.switch.flipped .lever::after {
+  inset: 50% 2px 4px 2px;
+}
+
+.switch .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.switch:focus-visible {
+  outline: 2px solid #ff3218;
+  outline-offset: 4px;
+}
+
+/* ------------------------------------------------------------ terminal */
+
+.terminal {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 360px;
+}
+
+.bezel {
+  position: relative;
+  flex: 1;
+  display: flex;
+  padding: 22px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--bezel), white 12%), var(--bezel));
+  box-shadow:
+    0 1px 0 #fff2 inset,
+    0 18px 40px #000a;
+}
+
+.screen {
+  flex: 1;
+  height: 62vh;
+  min-height: 320px;
+  overflow-y: auto;
+  padding: 16px 20px;
+  border-radius: 6px;
+  background: var(--screen);
+  color: var(--ink);
+  font-family: var(--theme-font), ui-monospace, monospace;
+  font-size: calc(var(--size) * var(--scale));
+  line-height: var(--line-height);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+  scrollbar-color: color-mix(in srgb, var(--ink), transparent 60%) transparent;
+}
+
+.line {
+  min-height: calc(1em * var(--line-height));
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  margin-inline-start: 1px;
+  vertical-align: -0.12em;
+  background: var(--cursor);
+  animation: blink 1.06s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.keys {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  resize: none;
+  pointer-events: none;
+}
+
+.screen.bell {
+  animation: bell 180ms;
+}
+
+@keyframes bell {
+  from {
+    filter: brightness(2.2);
+  }
+}
+
+.glass {
+  position: absolute;
+  inset: 22px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* CRT effects, only for the phosphor themes. */
+:is([data-theme='green'], [data-theme='amber'], [data-theme='white'], [data-theme='blue']) {
+  &.fx-glow .screen {
+    text-shadow:
+      0 0 2px var(--glow),
+      0 0 10px var(--glow);
+  }
+
+  &.fx-scanlines .glass {
+    background: repeating-linear-gradient(transparent 0 2px, rgb(0 0 0 / 28%) 2px 3px);
+  }
+
+  &.fx-curve .screen,
+  &.fx-curve .glass {
+    border-radius: 28px / 40px;
+  }
+
+  &.fx-curve .glass {
+    box-shadow:
+      inset 0 0 60px rgb(0 0 0 / 75%),
+      inset 0 0 8px rgb(0 0 0 / 80%);
+  }
+
+  &.fx-curve .glass::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(ellipse at 30% 15%, rgb(255 255 255 / 7%), transparent 45%);
+  }
+
+  &.fx-flicker .screen {
+    animation: flicker 0.12s infinite alternate;
+  }
+}
+
+@keyframes flicker {
+  to {
+    opacity: 0.94;
+  }
+}
+
+/* The Teletype: paper in a grey machine, printing in capitals. */
+[data-theme='teletype'] {
+  .bezel {
+    padding: 28px 34px 18px;
+    border-radius: 14px 14px 6px 6px;
+  }
+
+  .screen {
+    border-radius: 2px;
+    background:
+      linear-gradient(rgb(0 0 0 / 14%), transparent 18px),
+      var(--screen);
+    /* The ASR-33 printed capitals only. */
+    text-transform: uppercase;
+    box-shadow: inset 0 -14px 18px -10px rgb(0 0 0 / 35%);
+    text-shadow: 0.3px 0.2px 0 rgb(38 35 31 / 60%);
+  }
+
+  .cursor {
+    width: 0.55em;
+    height: 0.12em;
+    vertical-align: -0.1em;
+    animation: none;
+  }
+}
+
+.fx-upper .screen {
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor,
+  .screen {
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------------ settings */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--desk), white 7%);
+  box-shadow: 0 6px 18px #0005;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.controls select,
+.controls button {
+  min-height: 32px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--desk-text), transparent 65%);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--desk), white 12%);
+  color: var(--desk-text);
+  font: inherit;
+}
+
+.controls button {
+  cursor: pointer;
+}
+
+.controls button:hover,
+.controls select:hover {
+  border-color: var(--desk-text);
+}
+
+.speed {
+  margin-inline-start: auto;
+  font-size: 12px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+dialog {
+  max-width: min(720px, 92vw);
+  border: 0;
+  border-radius: 10px;
+  background: #f4f3ee;
+  color: #1b1b1b;
+  box-shadow: 0 20px 60px #000c;
+}
+
+dialog::backdrop {
+  background: #0009;
+}
+
+dialog h2 {
+  margin-top: 0;
+  color: #1d3f8f;
+}
+
+dialog td {
+  padding: 3px 10px 3px 0;
+  vertical-align: top;
+}
+
+dialog code {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+dialog a {
+  color: #1d3f8f;
+}
+
+.footer {
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.footer a {
+  color: inherit;
+}
+
+.noscript {
+  padding: 20px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .machine {
+    padding: 8px;
+  }
+
+  .bezel {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .glass {
+    inset: 10px;
+  }
+
+  .screen {
+    height: 58vh;
+    padding: 10px;
+  }
+
+  .panel-top .model,
+  .led-label {
+    display: none;
+  }
+
+  .led-cell {
+    min-width: 12px;
+  }
+}

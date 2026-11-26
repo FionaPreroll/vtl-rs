@@ -1,0 +1,47 @@
+# What `cargo deny check` holds the dependencies to. CI runs it on every pull
+# request and once a week, next to `cargo audit`.
+
+[graph]
+all-features = true
+
+[advisories]
+# Known vulnerabilities and unsound code fail the check, and so does a crate
+# nobody maintains any more. An exception gets a line here with its reason.
+unmaintained = "all"
+yanked = "deny"
+ignore = []
+
+[licenses]
+# Licenses that let vtl-rs be passed on under the GPL. A new one is a
+# decision, not an accident.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    # clipboard-win and error-code, which rustyline uses on Windows.
+    "BSL-1.0",
+    # vtl-rs itself.
+    "GPL-3.0-only",
+]
+confidence-threshold = 0.9
+
+[licenses.private]
+# vtl-rs itself is not published as a crate yet.
+ignore = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+# Everything comes from crates.io, nothing from a git repository or another
+# registry.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

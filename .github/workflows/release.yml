@@ -1,0 +1,85 @@
+name: Release
+
+# A tag v<version> (e.g. v0.2.0) becomes a GitHub release with the command
+# line program for every system the job build in ci.yml tests. The programs
+# are built here anew, without the cache of the other workflows, so that
+# nothing a pull request put into a cache ends up in a release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+          - os: ubuntu-24.04-arm
+            name: linux-aarch64
+          - os: macos-latest
+            name: macos-aarch64
+          - os: windows-latest
+            name: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # As in ci.yml.
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # branch master
+        with:
+          toolchain: stable
+      - run: cargo test --workspace --locked
+      - run: cargo build --release --locked
+      # As in the job build of ci.yml.
+      - name: Package
+        shell: bash
+        env:
+          NAME: vtl-rs-${{ github.ref_name }}-${{ matrix.name }}
+        run: |
+          mkdir -p "dist/$NAME"
+          cp README.md LICENSE "dist/$NAME/"
+          if [ -f target/release/vtl-rs.exe ]; then
+            cp target/release/vtl-rs.exe "dist/$NAME/"
+            (cd dist && 7z a -tzip "$NAME.zip" "$NAME" > /dev/null)
+          else
+            cp target/release/vtl-rs "dist/$NAME/"
+            tar -czf "dist/$NAME.tar.gz" -C dist "$NAME"
+          fi
+          rm -r "dist/$NAME"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # The packages, with a signed statement that this workflow built them from
+  # this commit:
+  #   gh attestation verify vtl-rs-v0.2.0-linux-x86_64.tar.gz --repo FionaPreroll/vtl-rs
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+      - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "vtl-rs $TAG" --generate-notes --verify-tag

@@ -1,0 +1,3 @@
+# The expected output of the examples is compared byte for byte, on Windows too.
+* text=auto eol=lf
+tests/expected/* -text
