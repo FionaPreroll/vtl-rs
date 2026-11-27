@@ -38,6 +38,8 @@ Options:
       --seed N          seed of the random numbers in '
       --baud RATE       print no faster than a serial line at RATE baud
                         (110 is a Teletype ASR-33)
+      --raw             pass every byte a program prints to the terminal,
+                        escape sequences too (they are left out otherwise)
   -q, --quiet           no greeting
   -h, --help            this help
   -V, --version         the version
@@ -63,8 +65,13 @@ struct Options {
     eval: Vec<String>,
     config: Config,
     baud: u32,
+    raw: bool,
     quiet: bool,
 }
+
+/// The largest program file `LOAD` and FILE read: far more than the 64 KB of
+/// memory a program can fill, and a limit for `/dev/zero` and the like.
+const MAX_FILE: u64 = 1 << 20;
 
 enum Parsed {
     Run(Box<Options>),
@@ -84,6 +91,7 @@ fn parse_args() -> Result<Parsed, String> {
             ..Config::default()
         },
         baud: 0,
+        raw: false,
         quiet: false,
     };
     let mut args = std::env::args_os().skip(1);
@@ -122,6 +130,7 @@ fn parse_args() -> Result<Parsed, String> {
             }
             "-i" | "--interactive" => options.interactive = true,
             "-q" | "--quiet" => options.quiet = true,
+            "--raw" => options.raw = true,
             "-e" | "--eval" => options.eval.push(value("a line")?),
             "-m" | "--memory" => {
                 let bytes = number(value("a number of bytes")?, "bytes")?;
@@ -165,10 +174,29 @@ struct Output {
     cps: u32,
     since: Instant,
     sent: u64,
+    /// Leaves out what a terminal would take as a command (see [`safe`]).
+    filter: bool,
+    /// The byte before, for the two bytes of a C1 control in UTF-8.
+    last: u8,
+}
+
+/// Whether a terminal shows `byte` rather than obeying it. Text, UTF-8 and
+/// the controls a Teletype knew pass (bell, backspace, tab, line feed, form
+/// feed, carriage return); escape and the other controls do not, so that a
+/// program cannot set the window title, rewrite the screen or, through OSC 52
+/// in some terminals, the clipboard. `last` is the byte before: C2 80 to C2 9F
+/// are the C1 controls (such as CSI) in UTF-8.
+fn safe(byte: u8, last: u8) -> bool {
+    match byte {
+        0x07 | 0x08 | b'\t' | b'\n' | 0x0c | b'\r' => true,
+        0x00..=0x1f | 0x7f => false,
+        0x80..=0x9f => last != 0xc2,
+        _ => true,
+    }
 }
 
 impl Output {
-    fn new(baud: u32) -> Self {
+    fn new(baud: u32, filter: bool) -> Self {
         Output {
             stdout: io::stdout(),
             // A start bit, eight data bits and a stop bit (the ASR-33 had
@@ -176,10 +204,19 @@ impl Output {
             cps: if baud == 0 { 0 } else { (baud / 10).max(1) },
             since: Instant::now(),
             sent: 0,
+            filter,
+            last: 0,
         }
     }
 
     fn write(&mut self, bytes: &[u8]) {
+        let filtered;
+        let bytes = if self.filter {
+            filtered = self.filter(bytes);
+            &filtered[..]
+        } else {
+            bytes
+        };
         let mut out = self.stdout.lock();
         if self.cps == 0 {
             // A closed pipe is no reason to stop the machine.
@@ -197,6 +234,22 @@ impl Output {
             }
             let _ = out.write_all(&[byte]).and_then(|()| out.flush());
         }
+    }
+
+    /// The bytes without the controls [`safe`] leaves out. The C2 that
+    /// starts a C1 control is held back until the next byte shows what it is.
+    fn filter(&mut self, bytes: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(bytes.len());
+        for &byte in bytes {
+            if self.last == 0xc2 && !(0x80..=0x9f).contains(&byte) {
+                out.push(0xc2);
+            }
+            if byte != 0xc2 && safe(byte, self.last) {
+                out.push(byte);
+            }
+            self.last = byte;
+        }
+        out
     }
 
     /// The line was idle (waiting for input): no catching up afterwards.
@@ -331,13 +384,23 @@ fn load(
     terminal: &mut Terminal,
     out: &mut Output,
 ) -> io::Result<bool> {
-    let bytes = if path.as_os_str() == "-" {
-        let mut bytes = Vec::new();
-        io::Read::read_to_end(&mut io::stdin(), &mut bytes)?;
-        bytes
+    let mut bytes = Vec::new();
+    // One byte more than allowed, to tell a file of exactly MAX_FILE bytes
+    // from a larger one.
+    if path.as_os_str() == "-" {
+        io::Read::read_to_end(&mut io::Read::take(io::stdin(), MAX_FILE + 1), &mut bytes)?;
     } else {
-        std::fs::read(path)?
-    };
+        io::Read::read_to_end(
+            &mut io::Read::take(std::fs::File::open(path)?, MAX_FILE + 1),
+            &mut bytes,
+        )?;
+    }
+    if bytes.len() as u64 > MAX_FILE {
+        return Err(io::Error::other(format!(
+            "larger than {} KB",
+            MAX_FILE / 1024
+        )));
+    }
     let text = String::from_utf8_lossy(&bytes);
     let mut ran = false;
     let prompt = vtl.config().prompt;
@@ -426,7 +489,9 @@ fn main() -> ExitCode {
         prompt: interactive,
         ..options.config
     });
-    let mut out = Output::new(options.baud);
+    // Escape sequences are left out only on a terminal: into a file or a
+    // pipe the output goes as the program printed it.
+    let mut out = Output::new(options.baud, !options.raw && io::stdout().is_terminal());
     let mut terminal = Terminal::new();
 
     if interactive && !options.quiet {
@@ -473,5 +538,25 @@ fn main() -> ExitCode {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn escape_sequences_are_left_out() {
+        let mut out = Output::new(0, true);
+        let text = "TITLE\x1b]0;PWNED\x07 \x1b[2J£\u{9b}31m\r\n\t\x08\x0c\x00\x7fé";
+        assert_eq!(
+            String::from_utf8(out.filter(text.as_bytes())).unwrap(),
+            "TITLE]0;PWNED\x07 [2J£31m\r\n\t\x08\x0c\u{e9}"
+        );
+        // The C2 of a character split over two writes.
+        assert_eq!(out.filter(b"\xc2"), b"");
+        assert_eq!(out.filter(b"\xa3"), "£".as_bytes());
+        assert_eq!(out.filter(b"\xc2"), b"");
+        assert_eq!(out.filter(b"\x9b"), b"");
     }
 }

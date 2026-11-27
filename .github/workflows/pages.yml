@@ -57,7 +57,9 @@ jobs:
           RUSTDOCFLAGS: -D warnings
       - run: cp -R target/doc _site/api
       # The README's pictures, of the site just built (web/showcase.mjs).
-      - run: npm ci
+      # No install scripts: Playwright needs none, and a package taken over
+      # later gets no hook to run in this job.
+      - run: npm ci --ignore-scripts
         working-directory: web
       - run: npx playwright install --with-deps chromium
         working-directory: web

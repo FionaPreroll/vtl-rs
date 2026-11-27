@@ -242,10 +242,24 @@ pub fn parse_expression(src: &[u8], syntax: Syntax) -> Result<Expr, ParseError> 
     Ok(expr)
 }
 
+/// The most terms and parentheses an expression may hold. A stored line of
+/// [`crate::machine::MAX_LINE`] bytes stays far below it; it keeps a line
+/// typed at the prompt or as the reply to `?`, which can be of any length,
+/// from nesting so deep that parsing or evaluating it runs out of stack.
+pub const MAX_TERMS: usize = 512;
+/// The deepest parentheses and array indexes may nest. Each level costs the
+/// parser several stack frames, and a thread of 1 MB (the main thread on
+/// Windows) has to take them in a debug build too.
+pub const MAX_DEPTH: usize = 64;
+
 struct Parser<'a> {
     src: &'a [u8],
     pos: usize,
     syntax: Syntax,
+    /// Terms read so far, parentheses and array indexes included.
+    terms: usize,
+    /// Parentheses and array indexes open now.
+    depth: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -254,6 +268,8 @@ impl<'a> Parser<'a> {
             src,
             pos: 0,
             syntax,
+            terms: 0,
+            depth: 0,
         }
     }
 
@@ -325,7 +341,13 @@ impl<'a> Parser<'a> {
     /// An expression that ends at a `)`, which it consumes, or at the end of
     /// the line: an array index or a parenthesised sub-expression.
     fn subexpression(&mut self) -> Result<Expr, ParseError> {
-        let expr = self.expression()?;
+        self.depth += 1;
+        if self.depth > MAX_DEPTH {
+            return Err(self.error("EXPRESSION TOO DEEP"));
+        }
+        let expr = self.expression();
+        self.depth -= 1;
+        let expr = expr?;
         match self.peek() {
             Some(b')') => {
                 self.pos += 1;
@@ -366,6 +388,10 @@ impl<'a> Parser<'a> {
         let Some(byte) = self.peek() else {
             return Err(self.error("MISSING VALUE"));
         };
+        self.terms += 1;
+        if self.terms > MAX_TERMS {
+            return Err(self.error("EXPRESSION TOO LONG"));
+        }
         if byte.is_ascii_digit() {
             let mut value: u16 = 0;
             while let Some(&d) = self.src.get(self.pos).filter(|b| b.is_ascii_digit()) {
@@ -556,6 +582,24 @@ mod tests {
         assert_eq!(stmt("A=1 2").unwrap_err().message, "BAD OPERATOR");
         assert_eq!(stmt("A=1+").unwrap_err().message, "MISSING VALUE");
         assert_eq!(stmt("A=1;").unwrap_err().column, 3);
+    }
+
+    #[test]
+    fn deep_or_long_expressions_are_refused() {
+        let deep = format!("A={}1", "(".repeat(100_000));
+        assert_eq!(stmt(&deep).unwrap_err().message, "EXPRESSION TOO DEEP");
+        let long = format!("A={}", vec!["1"; 100_000].join("+"));
+        assert_eq!(stmt(&long).unwrap_err().message, "EXPRESSION TOO LONG");
+        let index = format!("{}1)=1", ":".repeat(100_000));
+        assert_eq!(stmt(&index).unwrap_err().message, "EXPRESSION TOO DEEP");
+        let nested = format!("A={}1{}", "(".repeat(MAX_DEPTH), ")".repeat(MAX_DEPTH));
+        assert!(stmt(&nested).is_ok());
+        let wide = format!("A={}", vec!["(1)"; 300].join("+"));
+        assert_eq!(stmt(&wide).unwrap_err().message, "EXPRESSION TOO LONG");
+        let reply = "(".repeat(100_000);
+        assert!(parse_expression(reply.as_bytes(), Syntax::default()).is_err());
+        let fits = format!("A={}", vec!["1"; MAX_TERMS].join("+"));
+        assert!(stmt(&fits).is_ok());
     }
 
     #[test]

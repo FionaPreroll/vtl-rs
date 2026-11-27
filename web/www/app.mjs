@@ -10,6 +10,12 @@ const keys = $('keys');
 
 const STORE = 'vtl-rs:';
 const MAX_LINES = 3000;
+/** Characters on one line of the screen before a new one begins, so that a
+ * program printing without line ends does not grow a single text node until
+ * the page stalls. The screen wraps long lines anyway. */
+const MAX_COLUMNS = 4096;
+/** Bytes of output after which the machine rests until the next frame. */
+const MAX_FRAME_OUTPUT = 65536;
 /** Milliseconds of work per frame for the machine. */
 const FRAME_MS = 10;
 /** Looks at the front panel's lines per frame while a program runs. */
@@ -155,6 +161,11 @@ function print(text) {
       node.deleteData(Math.max(0, node.length - 1), 1);
     } else if (ch >= ' ' || ch === '\t') {
       pending += ch;
+      if (node.length + pending.length >= MAX_COLUMNS) {
+        flush();
+        line = newLine();
+        node = line.firstChild;
+      }
     }
   }
   flush();
@@ -237,6 +248,16 @@ function greeting() {
 function enter(text) {
   status = vtl.enter(text);
   output(vtl.output());
+  noteCrash();
+}
+
+/** The machine crashed (vtl.mjs started it anew): say so, at the prompt. */
+function noteCrash() {
+  if (!vtl.crashed) return;
+  vtl.crashed = false;
+  pendingLines = [];
+  status = vtl.status();
+  output(`${line.firstChild.length ? '\n' : ''}ERROR: THE MACHINE CRASHED AND WAS RESET, THE PROGRAM IS LOST\nOK\n`);
 }
 
 /** A line the user typed (or pasted, or that came from a file). */
@@ -304,6 +325,7 @@ function loadProgram(text, list = true) {
   const direct = vtl.load(text);
   output(vtl.output());
   status = vtl.status();
+  noteCrash();
   if (list) pendingLines.push('0');
   else output('OK\n');
   pendingLines.push(...direct);
@@ -321,6 +343,7 @@ function stop() {
   vtl.stop();
   output(vtl.output());
   status = vtl.status();
+  noteCrash();
 }
 
 /** Whether keys go to the program's $ now rather than into a line. */
@@ -330,6 +353,7 @@ function wantsKeys() {
 
 function key(code) {
   status = vtl.key(code);
+  noteCrash();
 }
 
 /** Notes what the program waits for, as soon as it waits. */
@@ -347,13 +371,17 @@ function tick(now) {
     // always be caught at the same one.
     const start = performance.now();
     const slice = budget / SAMPLES;
-    for (let i = 0; i < SAMPLES && status === Status.RUNNING; i++) {
+    let full = false;
+    for (let i = 0; i < SAMPLES && status === Status.RUNNING && !full; i++) {
       status = vtl.run(Math.max(1, Math.round(slice * (0.5 + Math.random()))));
       sample(true);
+      full = vtl.outputLength() >= MAX_FRAME_OUTPUT;
     }
     const spent = performance.now() - start;
-    budget = Math.max(1000, Math.min(5_000_000, Math.round(budget * (spent > FRAME_MS ? 0.7 : 1.3))));
+    // Less next time when the frame was long or the output too much.
+    budget = Math.max(1000, Math.min(5_000_000, Math.round(budget * (spent > FRAME_MS || full ? 0.7 : 1.3))));
     output(vtl.output());
+    noteCrash();
     // Keys typed before the next frame go to $ too.
     noteWait();
   }
@@ -717,7 +745,11 @@ async function start() {
   const shared = /^#program=([\w-]+)$/.exec(location.hash);
   if (shared) {
     try {
-      loadProgram(decodeProgram(shared[1]));
+      // Only the numbered lines, as the button share makes them: a link
+      // stores a program, it does not run anything, and above all no SAVE
+      // over a program kept in this browser.
+      const lines = decodeProgram(shared[1]).split(/\r?\n/);
+      loadProgram(lines.filter((l) => /^\s*\d/.test(l)).join('\n'));
     } catch {
       output('THE LINK HOLDS NO PROGRAM\nOK\n');
     }

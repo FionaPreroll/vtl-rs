@@ -84,6 +84,7 @@ vtl-rs [OPTIONS] [FILE]
       --precedence      * and / before + and -, instead of left to right
       --seed N          seed of the random numbers in '
       --baud RATE       print no faster than a serial line at RATE baud
+      --raw             pass escape sequences a program prints to the terminal
   -q, --quiet           no greeting
 ```
 

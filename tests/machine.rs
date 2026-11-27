@@ -395,3 +395,62 @@ fn key_presses_one_by_one() {
     assert_eq!(vtl.run(100), Status::Ready);
     assert_eq!(vtl.take_output(), b"89");
 }
+
+#[test]
+fn deep_input_is_refused_not_a_crash() {
+    let mut vtl = machine();
+    // Far deeper than the stack would take: an error, and the machine goes on.
+    let deep = format!("?={}1", "(".repeat(100_000));
+    vtl.enter(&deep);
+    assert!(String::from_utf8_lossy(&vtl.take_output()).contains("EXPRESSION TOO DEEP"));
+    // As the reply to `?`, it counts as 0, as any reply that is no expression.
+    vtl.enter("A=?");
+    assert_eq!(vtl.run(10), Status::NeedLine);
+    vtl.enter(&"(".repeat(100_000));
+    assert_eq!(vtl.run(10), Status::Ready);
+    assert_eq!(vtl.var(b'A'), 0);
+    let long = vec!["1"; 100_000].join("+");
+    vtl.enter("A=?");
+    vtl.run(10);
+    vtl.enter(&long);
+    assert_eq!(vtl.run(10), Status::Ready);
+    assert_eq!(vtl.var(b'A'), 0);
+    assert_eq!(session(&mut vtl, &["?=6*7"]), "42");
+}
+
+#[test]
+fn replies_nest_only_a_little() {
+    let mut vtl = machine();
+    vtl.enter("A=?");
+    // A reply of `?` reads the next line, but only a few levels deep.
+    for _ in 0..100_000 {
+        vtl.enter("?+1");
+    }
+    while vtl.run(10) == Status::Running {}
+    assert_eq!(vtl.status(), Status::Ready);
+    assert_eq!(vtl.var(b'A'), 4);
+}
+
+#[test]
+fn listing_stays_within_memory_after_a_poke() {
+    let mut vtl = Machine::new(Config {
+        prompt: false,
+        memory: 65535,
+        ..Config::default()
+    });
+    let text = format!("?=\"{}\"", "A".repeat(200));
+    let mut n = 1;
+    while vtl.edit_line(n, text.as_bytes()) {
+        n += 1;
+    }
+    while vtl.edit_line(n, b"A=1") {
+        n += 1;
+    }
+    vtl.take_output();
+    // The length byte of the last line, near the end of memory, made large.
+    let last = 65535 - vtl.free() - 7;
+    vtl.set_var(b'<', last + 2);
+    vtl.set_var(b'@', 255);
+    let listing = vtl.listing(0, u16::MAX);
+    assert!(listing.starts_with("1 ?=\"AAA"));
+}

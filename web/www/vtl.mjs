@@ -5,30 +5,58 @@
 export const Status = Object.freeze({ READY: 0, RUNNING: 1, LINE: 2, KEY: 3 });
 
 export class Vtl {
-  /** @param {WebAssembly.Instance} instance */
-  constructor(instance) {
+  /**
+   * @param {WebAssembly.Instance} instance
+   * @param {WebAssembly.Module} [module] to start the machine anew after it crashed
+   */
+  constructor(instance, module) {
+    this.module = module;
     this.x = instance.exports;
     this.encoder = new TextEncoder();
     this.decoder = new TextDecoder();
+    this.options = {};
+    /** Set when the module trapped and was started anew; the page reports it. */
+    this.crashed = false;
+    this.crashes = 0;
   }
 
   /** Loads the module from bytes, a Response or a promise of one. */
   static async load(source) {
     const resolved = await source;
-    const { instance } =
+    const { instance, module } =
       typeof Response !== 'undefined' && resolved instanceof Response
         ? await WebAssembly.instantiateStreaming(resolved, {}).catch(async () =>
             WebAssembly.instantiate(await resolved.clone().arrayBuffer(), {}),
           )
         : await WebAssembly.instantiate(resolved, {});
-    return new Vtl(instance);
+    return new Vtl(instance, module);
+  }
+
+  /**
+   * Calls the module. A trap (a bug, or the stack running out) leaves it
+   * unusable, so the machine is started anew with an empty program and
+   * `crashed` set, and the call answers READY: the page goes on working.
+   */
+  call(name, ...args) {
+    try {
+      return this.x[name](...args);
+    } catch (error) {
+      if (!(error instanceof WebAssembly.RuntimeError) || !this.module) throw error;
+      this.x = new WebAssembly.Instance(this.module, {}).exports;
+      this.reset(this.options);
+      this.crashed = true;
+      this.crashes += 1;
+      return 0;
+    }
   }
 
   /**
    * A new machine with an empty program.
    * @param {{memory?: number, strict?: boolean, precedence?: boolean, seed?: number}} options
    */
-  reset({ memory = 32768, strict = false, precedence = false, seed } = {}) {
+  reset(options = {}) {
+    const { memory = 32768, strict = false, precedence = false, seed } = options;
+    this.options = options;
     const flags = (strict ? 1 : 0) | (precedence ? 2 : 0);
     const s = seed ?? Math.floor(Math.random() * 0x1_0000_0000);
     this.x.vtl_init(memory, flags, s >>> 0);
@@ -38,36 +66,43 @@ export class Vtl {
   /** Enters a line: a program line, a statement, a command or input. */
   enter(line) {
     const bytes = this.encoder.encode(line);
-    const ptr = this.x.vtl_buffer(bytes.length);
+    const crashes = this.crashes;
+    const ptr = this.call('vtl_buffer', bytes.length);
+    if (this.crashes !== crashes) return 0;
     new Uint8Array(this.x.memory.buffer, ptr, bytes.length).set(bytes);
-    return this.x.vtl_enter(bytes.length);
+    return this.call('vtl_enter', bytes.length);
   }
 
   /** A key press for `$` (13 for Return). */
   key(code) {
-    return this.x.vtl_key(code);
+    return this.call('vtl_key', code);
   }
 
   /** Runs up to `budget` statements. */
   run(budget) {
-    return this.x.vtl_run(budget);
+    return this.call('vtl_run', budget);
   }
 
   status() {
-    return this.x.vtl_status();
+    return this.call('vtl_status');
   }
 
   stop() {
-    this.x.vtl_stop();
+    this.call('vtl_stop');
   }
 
   newProgram() {
-    this.x.vtl_new();
+    this.call('vtl_new');
+  }
+
+  /** How many bytes the machine printed and `output` did not take yet. */
+  outputLength() {
+    return this.call('vtl_output_len');
   }
 
   /** What the machine printed since the last call. */
   output() {
-    const len = this.x.vtl_output_len();
+    const len = this.call('vtl_output_len');
     if (len === 0) return '';
     const bytes = new Uint8Array(this.x.memory.buffer, this.x.vtl_output(), len);
     const text = this.decoder.decode(bytes, { stream: true });
@@ -77,27 +112,27 @@ export class Vtl {
 
   /** The program as text, as `0` lists it. */
   listing() {
-    const len = this.x.vtl_listing();
+    const len = this.call('vtl_listing');
     const bytes = new Uint8Array(this.x.memory.buffer, this.x.vtl_text(), len);
     return new TextDecoder().decode(bytes);
   }
 
   /** The line that runs (0 if none), for the address lights. */
   line() {
-    return this.x.vtl_line();
+    return this.call('vtl_line');
   }
 
   /** The value stored last, for the data lights. */
   value() {
-    return this.x.vtl_value();
+    return this.call('vtl_value');
   }
 
   free() {
-    return this.x.vtl_free();
+    return this.call('vtl_free');
   }
 
   statements() {
-    return this.x.vtl_statements();
+    return this.call('vtl_statements');
   }
 
   /**

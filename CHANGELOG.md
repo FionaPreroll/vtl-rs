@@ -46,6 +46,28 @@ web version.
   machine runs on the command line and in the browser.
 - Rust edition 2024, minimum supported Rust version 1.85.
 
+### Security
+
+- An expression holds at most 512 terms and nests at most 64 parentheses
+  deep, and a reply to `?` holds a further `?` at most four levels deep.
+  Deeper input, typed at the prompt or as a reply, ran out of stack: the
+  command line program aborted and the web page stopped responding until it
+  was reloaded.
+- The web page starts the machine anew, with a message, should the module
+  ever crash.
+- A shared link stores only the numbered lines of its program and runs
+  nothing. Before, its other lines ran as if typed, `SAVE` too, which could
+  overwrite a program saved in the browser.
+- The command line program leaves out escape sequences and other control
+  characters that a program prints to a terminal, so that a program cannot
+  set the window title, rewrite the screen or the clipboard; `--raw` passes
+  them on. Into a file or a pipe the output stays as printed.
+- Program files larger than 1 MB are refused.
+- The web page cuts lines longer than 4096 characters, lets a program print
+  at most 64 KB a frame, and has a Content Security Policy.
+- `Machine::listing` stays within memory after `set_var` changed the program.
+- CI installs the npm packages without their install scripts.
+
 ### Removed
 
 - The dependencies `dirs`, `flexi_logger`, `log`, `rand` and `chrono`.

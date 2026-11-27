@@ -19,6 +19,10 @@ pub const DEFAULT_MEMORY: u16 = 32768;
 /// Room for a statement: a stored line keeps its length in one byte, next to
 /// its two bytes of line number and a closing zero.
 pub const MAX_LINE: usize = 255 - 4;
+/// How deep a reply to `?` may itself hold a `?`, whose reply is read from the
+/// next line. Deeper, a `?` counts as 0, so that a stream of replies cannot
+/// nest the evaluation until it runs out of stack.
+pub const MAX_INPUT_NESTING: u8 = 4;
 
 /// How a machine is set up.
 #[derive(Clone, Debug)]
@@ -100,6 +104,8 @@ struct Core {
     lines_used: usize,
     chars_used: usize,
     last_value: u16,
+    /// How many replies to `?` are being evaluated inside each other.
+    nesting: u8,
 }
 
 /// A VTL-2 interpreter.
@@ -219,11 +225,17 @@ impl Core {
                     return Err(Need::Line);
                 };
                 self.lines_used += 1;
-                // A reply that is no expression counts as 0.
-                match parse_expression(line, self.syntax) {
-                    Ok(expr) => self.eval(&expr)?,
-                    Err(_) => 0,
+                if self.nesting >= MAX_INPUT_NESTING {
+                    return Ok(0);
                 }
+                // A reply that is no expression counts as 0.
+                let Ok(expr) = parse_expression(line, self.syntax) else {
+                    return Ok(0);
+                };
+                self.nesting += 1;
+                let value = self.eval(&expr);
+                self.nesting -= 1;
+                value?
             }
         })
     }
@@ -316,6 +328,7 @@ impl Machine {
             lines_used: 0,
             chars_used: 0,
             last_value: 0,
+            nesting: 0,
         };
         core.seed(config.seed);
         core.vars[AMP] = PROGRAM_START;
@@ -359,6 +372,11 @@ impl Machine {
     pub fn set_var(&mut self, name: u8, value: u16) {
         if !matches!(name, b'?' | b'$') {
             self.core.store(name, value);
+        }
+        // A program that waits or runs reads itself anew before its next
+        // statement; at the prompt the listing has to be right at once.
+        if self.core.dirty && matches!(self.exec, Exec::Idle) {
+            self.reload();
         }
     }
 
@@ -698,9 +716,14 @@ impl Machine {
     }
 
     fn line_text(&self, line: &Line) -> &[u8] {
+        // Within memory even if the program was changed there and not read
+        // anew yet.
+        let mem = &self.core.mem;
         let addr = usize::from(line.addr);
-        let len = usize::from(self.core.mem[addr + 2]);
-        let text = &self.core.mem[addr + 3..addr + len.max(4) - 1];
+        let len = usize::from(mem.get(addr + 2).copied().unwrap_or(0));
+        let start = (addr + 3).min(mem.len());
+        let end = (addr + len.max(4) - 1).clamp(start, mem.len());
+        let text = &mem[start..end];
         let end = text.iter().position(|&b| b == 0).unwrap_or(text.len());
         &text[..end]
     }
