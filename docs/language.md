@@ -111,4 +111,6 @@ Besides `0`, a few words work at the prompt. No VTL-2 statement looks like them.
 - Errors are reported (`ERROR IN LINE 20: MISSING = AT COLUMN 2`) where the original went on and did something undefined. A line with an error is still stored, so that a program can be fixed line by line.
 - A division by zero gives 65535, with the dividend as remainder, as in VTL02; the Altair 680 froze.
 - Lower-case letters are variables of their own.
+- An expression holds at most 512 terms and parentheses (`EXPRESSION TOO LONG`), far more than a stored line of 251 characters can. A reply to `?` that holds a `?` itself reads the next line, but only four levels deep; deeper, `?` is 0.
+- On a terminal the command line program leaves out escape sequences and the control characters other than bell, backspace, tab, line feed, form feed and carriage return, so `$=27` prints nothing; `--raw` passes them on.
 - The VTL02 extensions are on unless `--strict` is given.

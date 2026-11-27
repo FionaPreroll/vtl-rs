@@ -126,3 +126,32 @@ fn help_and_version() {
     assert!(stdout(&vtl(&["-V"], "")).starts_with("vtl-rs "));
     assert!(stdout(&vtl(&["-q"], "HELP\n")).contains("VTL-2 IN SHORT"));
 }
+
+#[test]
+fn hostile_input_is_refused_not_a_crash() {
+    // Deeper than the stack would take, typed and as the reply to `?`.
+    let deep = "(".repeat(100_000);
+    let out = vtl(&["-q", "-e", "A=?", "-e", "?=A"], &format!("{deep}\n"));
+    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(stdout(&out), "OK\n0\nOK\n");
+    let out = vtl(&["-q"], &format!("?={deep}1\n?=42\n"));
+    assert!(stdout(&out).contains("EXPRESSION TOO LONG"));
+    assert!(stdout(&out).ends_with("42\nOK\n"));
+}
+
+#[test]
+fn large_files_are_refused() {
+    let path = file("large.vtl", &"\n".repeat((1 << 20) + 1));
+    let out = vtl(&[path.to_str().unwrap()], "");
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("larger than 1024 KB"));
+}
+
+#[test]
+fn output_to_a_pipe_stays_raw() {
+    // Escape sequences are left out on a terminal only; --raw is accepted.
+    let out = vtl(&["-q", "--raw", "-e", "$=27"], "");
+    assert_eq!(out.stdout, b"\x1b\nOK\n");
+    let out = vtl(&["-q", "-e", "$=27"], "");
+    assert_eq!(out.stdout, b"\x1b\nOK\n");
+}

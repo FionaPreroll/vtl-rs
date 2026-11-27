@@ -86,3 +86,22 @@ test('every example runs and is offered on the page', async () => {
     assert.equal(session(['RUN']), `${expected}${expected.endsWith('\n') ? '' : '\n'}OK\n`);
   }
 });
+
+test('deep input is an error, not a crash', () => {
+  vtl.reset({ seed: 1 });
+  assert.match(session([`?=${'('.repeat(100_000)}1`]), /^ERROR: EXPRESSION TOO LONG/);
+  assert.equal(session(['A=?', '('.repeat(100_000), '?=A']), 'OK\n0\nOK\n');
+  assert.equal(vtl.crashed, false);
+});
+
+test('a crashed module is started anew', async () => {
+  const own = await Vtl.load(readFileSync(wasm));
+  own.reset({ memory: 4096, seed: 1 });
+  own.x = { ...own.x, vtl_run: () => { throw new WebAssembly.RuntimeError('unreachable'); } };
+  assert.equal(own.run(10), Status.READY);
+  assert.equal(own.crashed, true);
+  assert.equal(own.free(), 4096 - 264, 'with the options it had');
+  let status = own.enter('?=6*7');
+  while (status === Status.RUNNING) status = own.run(100);
+  assert.equal(own.output(), '42\nOK\n');
+});

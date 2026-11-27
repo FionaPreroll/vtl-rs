@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { examples } from '../www/examples.mjs';
-import { done, open, root, screen, setup, type, until, waitLight } from './harness.mjs';
+import { done, open, ready, root, screen, setup, type, until, waitLight } from './harness.mjs';
 
 const env = setup();
 
@@ -85,6 +85,37 @@ test('Copy link copies a link that brings the program back', async () => {
   await type(other, 'RUN');
   await until(other, /^SHARED ÄÖÜ\nOK$/m);
   await done(other, assert);
+  await done(page, assert);
+});
+
+test('A link stores its numbered lines and runs nothing, SAVE least of all', async () => {
+  const page = await open(env);
+  await type(page, '10 ?="MINE"', 'SAVE GAME');
+  await until(page, /^SAVE GAME\nOK$/m);
+  const text = '10 ?="FROM A LINK"\nSAVE GAME\nRUN\n?=12345\n';
+  const hash = `#program=${Buffer.from(text).toString('base64url')}`;
+  // In the same browser, where GAME is kept.
+  const other = page;
+  await other.goto(env.url + hash);
+  await other.reload();
+  await ready(other);
+  await until(other, /^10 \?="FROM A LINK"\nOK$/m);
+  await other.waitForTimeout(300);
+  const shown = await screen(other);
+  assert.doesNotMatch(shown, /SAVE GAME|12345|^FROM A LINK$/m);
+  const kept = await other.evaluate(() => localStorage.getItem('vtl-rs:program:GAME'));
+  assert.equal(kept, '10 ?="MINE"\n');
+  await done(page, assert);
+});
+
+test('A line without end is cut into lines the page can take', async () => {
+  const page = await open(env);
+  await type(page, '10 ?="0123456789";', '20 #=10', 'RUN');
+  await page.waitForTimeout(1000);
+  await page.keyboard.press('Escape');
+  await until(page, /^STOP AT \d+\nOK$/m);
+  const longest = await page.$eval('#screen', (el) => Math.max(...[...el.children].map((l) => l.textContent.length)));
+  assert.ok(longest <= 4096 + 20, `a line of ${longest} characters`);
   await done(page, assert);
 });
 
