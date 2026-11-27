@@ -48,10 +48,11 @@ web version.
 
 ### Security
 
-- An expression holds at most 512 terms and parentheses, and a reply to `?`
-  holds a further `?` at most four levels deep. Deeper input, typed at the
-  prompt or as a reply, ran out of stack: the command line program aborted
-  and the web page stopped responding until it was reloaded.
+- An expression holds at most 512 terms and nests at most 64 parentheses
+  deep, and a reply to `?` holds a further `?` at most four levels deep.
+  Deeper input, typed at the prompt or as a reply, ran out of stack: the
+  command line program aborted and the web page stopped responding until it
+  was reloaded.
 - The web page starts the machine anew, with a message, should the module
   ever crash.
 - A shared link stores only the numbered lines of its program and runs

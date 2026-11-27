@@ -135,7 +135,7 @@ fn hostile_input_is_refused_not_a_crash() {
     assert_eq!(out.status.code(), Some(0));
     assert_eq!(stdout(&out), "OK\n0\nOK\n");
     let out = vtl(&["-q"], &format!("?={deep}1\n?=42\n"));
-    assert!(stdout(&out).contains("EXPRESSION TOO LONG"));
+    assert!(stdout(&out).contains("EXPRESSION TOO DEEP"));
     assert!(stdout(&out).ends_with("42\nOK\n"));
 }
 

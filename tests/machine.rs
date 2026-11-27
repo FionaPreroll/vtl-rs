@@ -402,7 +402,7 @@ fn deep_input_is_refused_not_a_crash() {
     // Far deeper than the stack would take: an error, and the machine goes on.
     let deep = format!("?={}1", "(".repeat(100_000));
     vtl.enter(&deep);
-    assert!(String::from_utf8_lossy(&vtl.take_output()).contains("EXPRESSION TOO LONG"));
+    assert!(String::from_utf8_lossy(&vtl.take_output()).contains("EXPRESSION TOO DEEP"));
     // As the reply to `?`, it counts as 0, as any reply that is no expression.
     vtl.enter("A=?");
     assert_eq!(vtl.run(10), Status::NeedLine);

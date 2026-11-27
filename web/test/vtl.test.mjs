@@ -89,7 +89,7 @@ test('every example runs and is offered on the page', async () => {
 
 test('deep input is an error, not a crash', () => {
   vtl.reset({ seed: 1 });
-  assert.match(session([`?=${'('.repeat(100_000)}1`]), /^ERROR: EXPRESSION TOO LONG/);
+  assert.match(session([`?=${'('.repeat(100_000)}1`]), /^ERROR: EXPRESSION TOO DEEP/);
   assert.equal(session(['A=?', '('.repeat(100_000), '?=A']), 'OK\n0\nOK\n');
   assert.equal(vtl.crashed, false);
 });
